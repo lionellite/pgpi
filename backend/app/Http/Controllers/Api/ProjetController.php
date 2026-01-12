@@ -1,0 +1,396 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreProjetRequest;
+use App\Http\Requests\UpdateProjetRequest;
+use App\Http\Resources\ProjetResource;
+use App\Http\Resources\UserResource;
+use App\Http\Resources\PartenaireResource;
+use App\Models\Projet;
+use App\Models\Partenaire;
+use App\Models\User;
+use App\Models\Institution;
+use App\Traits\Auditable;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Storage;
+
+class ProjetController extends Controller
+{
+    use Auditable;
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request): AnonymousResourceCollection
+    {
+        $user = $request->user();
+        $query = Projet::with(['chefProjet', 'activites', 'personnel', 'partenaires']);
+
+        // Filtres selon le rôle
+        if ($user->role === 'chef_projet') {
+            $query->where('chef_projet_id', $user->id)
+                  ->orWhereHas('personnel', function($q) use ($user) {
+                      $q->where('user_id', $user->id);
+                  });
+        } elseif ($user->role === 'personnel') {
+            $query->whereHas('personnel', function($q) use ($user) {
+                $q->where('user_id', $user->id);
+            });
+        } elseif ($user->role === 'partenaire') {
+            // Partenaires voient les projets où ils sont chef de projet ou partenaire
+            $query->where(function($q) use ($user) {
+                $q->where('chef_projet_id', $user->id)
+                  ->orWhereHas('partenaires', function($q2) use ($user) {
+                      $q2->where('partenaires.id', $user->id);
+                  });
+            });
+        } elseif ($user->role === 'consultation') {
+            // Lecture seule pour consultation
+        }
+
+        // Filtres
+        if ($request->has('etat')) {
+            $query->where('etat', $request->etat);
+        }
+        if ($request->has('search')) {
+            $query->where('titre', 'like', '%' . $request->search . '%');
+        }
+        if ($request->has('date_debut')) {
+            $query->where('date_debut', '>=', $request->date_debut);
+        }
+        if ($request->has('date_fin')) {
+            $query->where('date_fin', '<=', $request->date_fin);
+        }
+
+        $perPage = $request->get('per_page', 15);
+        $projets = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
+        return ProjetResource::collection($projets);
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(StoreProjetRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        $data = $request->validated();
+        
+        // Convertir email chef projet en ID
+        if (isset($data['chef_projet_email'])) {
+            $chefProjet = User::where('email', $data['chef_projet_email'])->first();
+            $data['chef_projet_id'] = $chefProjet->id;
+            unset($data['chef_projet_email']);
+        } else {
+            $data['chef_projet_id'] = $data['chef_projet_id'] ?? $user->id;
+        }
+
+        // Convertir email institution initiatrice (utilisateur partenaire) en ID
+        if (isset($data['institution_initiatrice_email'])) {
+            $institutionUser = User::where('email', $data['institution_initiatrice_email'])
+                ->where('role', 'partenaire')
+                ->first();
+            if ($institutionUser) {
+                $data['institution_initiatrice_user_id'] = $institutionUser->id;
+            }
+            unset($data['institution_initiatrice_email']);
+        }
+
+        $data['etat'] = 'planifie';
+
+        // Gestion des images
+        if ($request->hasFile('images')) {
+            $images = [];
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('projets/images', 'public');
+                $images[] = Storage::url($path);
+            }
+            $data['images'] = $images;
+        }
+
+        // Gérer les institutions liées
+        $institutionsEmails = $data['institutions_emails'] ?? [];
+        unset($data['institutions_emails']);
+
+        $projet = Projet::create($data);
+
+        // Attacher les institutions
+        if (!empty($institutionsEmails)) {
+            $institutionIds = Institution::whereIn('email', $institutionsEmails)->pluck('id');
+            $projet->institutions()->sync($institutionIds);
+        }
+
+        $projet->load(['chefProjet', 'institutionInitiatrice', 'institutions', 'activites', 'personnel', 'partenaires']);
+
+        return response()->json([
+            'message' => 'Projet créé avec succès',
+            'data' => new ProjetResource($projet)
+        ], 201);
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Projet $projet): JsonResponse
+    {
+        $projet->load(['chefProjet', 'institutionInitiatrice', 'institutions', 'activites', 'medias', 'documents', 'personnel', 'partenaires']);
+        
+        return response()->json([
+            'data' => new ProjetResource($projet)
+        ]);
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(UpdateProjetRequest $request, Projet $projet): JsonResponse
+    {
+        $data = $request->validated();
+
+        // Convertir email chef projet en ID
+        if (isset($data['chef_projet_email'])) {
+            $chefProjet = User::where('email', $data['chef_projet_email'])->first();
+            $data['chef_projet_id'] = $chefProjet->id;
+            unset($data['chef_projet_email']);
+        }
+
+        // Convertir email institution initiatrice (utilisateur partenaire) en ID
+        if (isset($data['institution_initiatrice_email'])) {
+            $institutionUser = User::where('email', $data['institution_initiatrice_email'])
+                ->where('role', 'partenaire')
+                ->first();
+            if ($institutionUser) {
+                $data['institution_initiatrice_user_id'] = $institutionUser->id;
+            }
+            unset($data['institution_initiatrice_email']);
+        }
+
+        // Gestion des images
+        if ($request->hasFile('images')) {
+            $images = $projet->images ?? [];
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('projets/images', 'public');
+                $images[] = Storage::url($path);
+            }
+            $data['images'] = $images;
+        }
+
+        // Gérer les institutions liées
+        if (isset($data['institutions_emails'])) {
+            $institutionsEmails = $data['institutions_emails'];
+            unset($data['institutions_emails']);
+            $institutionIds = Institution::whereIn('email', $institutionsEmails)->pluck('id');
+            $projet->institutions()->sync($institutionIds);
+        }
+
+        $projet->update($data);
+        $projet->load(['chefProjet', 'institutionInitiatrice', 'institutions', 'activites', 'personnel', 'partenaires']);
+
+        return response()->json([
+            'message' => 'Projet mis à jour avec succès',
+            'data' => new ProjetResource($projet)
+        ]);
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Request $request, Projet $projet): JsonResponse
+    {
+        $user = $request->user();
+        
+        // Vérifier les permissions : créateur, admin ou directeur
+        $canDelete = $user->isAdmin() 
+            || $user->isDirecteur() 
+            || $projet->chef_projet_id === $user->id;
+        
+        if (!$canDelete) {
+            return response()->json(['message' => 'Accès refusé'], 403);
+        }
+
+        $request->validate([
+            'justification' => 'required|string|min:10',
+        ]);
+
+        $oldData = $projet->toArray();
+        
+        $this->logAction(
+            'delete',
+            Projet::class,
+            $projet->id,
+            $request,
+            $request->justification,
+            $oldData
+        );
+
+        $projet->delete();
+
+        return response()->json(['message' => 'Projet supprimé avec succès'], 200);
+    }
+
+    /**
+     * Archive a project
+     */
+    public function archive(Projet $projet): JsonResponse
+    {
+        $user = request()->user();
+        
+        if (!$user->isAdmin() && !$user->isDirecteur()) {
+            return response()->json(['message' => 'Accès refusé'], 403);
+        }
+
+        $projet->update(['etat' => 'archive']);
+        $projet->load(['chefProjet', 'activites', 'personnel', 'partenaires']);
+
+        return response()->json([
+            'message' => 'Projet archivé avec succès',
+            'data' => new ProjetResource($projet)
+        ]);
+    }
+
+    /**
+     * Close a project
+     */
+    public function cloturer(Projet $projet): JsonResponse
+    {
+        $user = request()->user();
+        
+        if (!$this->canModifyProjet($user, $projet)) {
+            return response()->json(['message' => 'Accès refusé'], 403);
+        }
+
+        $projet->update(['etat' => 'cloture']);
+        $projet->load(['chefProjet', 'activites', 'personnel', 'partenaires']);
+
+        return response()->json([
+            'message' => 'Projet clôturé avec succès',
+            'data' => new ProjetResource($projet)
+        ]);
+    }
+
+    /**
+     * Attach a partner to a project
+     */
+    public function attachPartenaire(Request $request, Projet $projet): JsonResponse
+    {
+        $user = request()->user();
+        
+        if (!$this->canModifyProjet($user, $projet)) {
+            return response()->json(['message' => 'Accès refusé'], 403);
+        }
+
+        $request->validate([
+            'partenaire_email' => 'required_without:partenaire_id|email|exists:partenaires,email',
+            'partenaire_id' => 'required_without:partenaire_email|exists:partenaires,id',
+            'role' => 'nullable|string|max:255',
+            'type' => 'nullable|string|max:255',
+        ]);
+
+        $partenaireId = $request->partenaire_id;
+        if ($request->has('partenaire_email')) {
+            $partenaire = Partenaire::where('email', $request->partenaire_email)->first();
+            $partenaireId = $partenaire->id;
+        }
+
+        $projet->partenaires()->syncWithoutDetaching([
+            $partenaireId => [
+                'role' => $request->role,
+                'type' => $request->type,
+            ]
+        ]);
+
+        $projet->load('partenaires');
+
+        return response()->json([
+            'message' => 'Partenaire ajouté avec succès',
+            'data' => new ProjetResource($projet)
+        ]);
+    }
+
+    /**
+     * Detach a partner from a project
+     */
+    public function detachPartenaire(Projet $projet, Partenaire $partenaire): JsonResponse
+    {
+        $user = request()->user();
+        
+        if (!$this->canModifyProjet($user, $projet)) {
+            return response()->json(['message' => 'Accès refusé'], 403);
+        }
+
+        $projet->partenaires()->detach($partenaire->id);
+
+        return response()->json(['message' => 'Partenaire retiré avec succès']);
+    }
+
+    /**
+     * Attach personnel to a project
+     */
+    public function attachPersonnel(Request $request, Projet $projet): JsonResponse
+    {
+        $user = request()->user();
+        
+        if (!$this->canModifyProjet($user, $projet)) {
+            return response()->json(['message' => 'Accès refusé'], 403);
+        }
+
+        $request->validate([
+            'user_email' => 'required_without:user_id|email|exists:users,email',
+            'user_id' => 'required_without:user_email|exists:users,id',
+            'role' => 'required|string|max:255',
+            'date_debut' => 'required|date',
+            'date_fin' => 'nullable|date|after:date_debut',
+        ]);
+
+        $userId = $request->user_id;
+        if ($request->has('user_email')) {
+            $user = User::where('email', $request->user_email)->first();
+            $userId = $user->id;
+        }
+
+        $projet->personnel()->syncWithoutDetaching([
+            $userId => [
+                'role' => $request->role,
+                'date_debut' => $request->date_debut,
+                'date_fin' => $request->date_fin,
+            ]
+        ]);
+
+        $projet->load('personnel');
+
+        return response()->json([
+            'message' => 'Personnel ajouté avec succès',
+            'data' => new ProjetResource($projet)
+        ]);
+    }
+
+    /**
+     * Detach personnel from a project
+     */
+    public function detachPersonnel(Projet $projet, User $user): JsonResponse
+    {
+        $userRequest = request()->user();
+        
+        if (!$this->canModifyProjet($userRequest, $projet)) {
+            return response()->json(['message' => 'Accès refusé'], 403);
+        }
+
+        $projet->personnel()->detach($user->id);
+
+        return response()->json(['message' => 'Personnel retiré avec succès']);
+    }
+
+    /**
+     * Check if user can modify project
+     */
+    private function canModifyProjet($user, Projet $projet): bool
+    {
+        return $user->isAdmin() 
+            || $user->isDirecteur() 
+            || $projet->chef_projet_id === $user->id
+            || ($user->role === 'partenaire' && $projet->chef_projet_id === $user->id);
+    }
+}
