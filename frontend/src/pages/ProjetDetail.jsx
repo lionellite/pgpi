@@ -86,8 +86,8 @@ export default function ProjetDetail() {
   const [formLoading, setFormLoading] = useState(false);
 
   const canEdit = user && (
-    user.role === 'admin' || 
-    user.role === 'directeur' || 
+    user.role?.nom === 'admin' ||
+    user.role?.nom === 'directeur' ||
     projet?.chef_projet_id === user.id
   );
 
@@ -616,7 +616,7 @@ export default function ProjetDetail() {
               </FormControl>
             </Box>
           </Box>
-          {(canEdit || user?.role === 'partenaire') && (
+          {(canEdit || user?.role?.nom === 'partenaire') && (
             <Box component="form" onSubmit={handleDocumentSubmit} sx={{ mb: 2, display: 'grid', gap: 2 }}>
               <TextField
                 label="Titre"
@@ -697,7 +697,7 @@ export default function ProjetDetail() {
                       setError(err.response?.data?.message || 'Erreur lors du rejet');
                     }
                   }}
-                  canValidate={user && (user.role === 'admin' || user.role === 'directeur')}
+                  canValidate={user && (user.role?.nom === 'admin' || user.role?.nom === 'directeur')}
                 />
               ))}
             </Box>
@@ -761,7 +761,7 @@ export default function ProjetDetail() {
               </FormControl>
             </Box>
           </Box>
-          {(canEdit || user?.role === 'partenaire') && (
+          {(canEdit || user?.role?.nom === 'partenaire') && (
             <Box component="form" onSubmit={handleMediaSubmit} sx={{ mb: 2, display: 'grid', gap: 2 }}>
               <TextField
                 label="Titre"
