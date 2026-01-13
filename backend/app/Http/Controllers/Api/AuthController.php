@@ -19,21 +19,17 @@ class AuthController extends Controller
     public function register(Request $request): JsonResponse
     {
         $request->validate([
-            'nom' => 'required|string|max:255',
-            'prenom' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
-            'role' => 'nullable|in:admin,directeur,chef_projet,personnel,partenaire,consultation',
-            'departement' => 'nullable|string|max:255',
+            'role_id' => 'nullable|exists:roles,id',
         ]);
 
         $user = User::create([
-            'nom' => $request->nom,
-            'prenom' => $request->prenom,
+            'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => $request->role ?? 'personnel',
-            'departement' => $request->departement,
+            'role_id' => $request->role_id,
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -55,7 +51,7 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('email', $request->email)->with('role', 'module')->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
