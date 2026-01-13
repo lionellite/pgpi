@@ -8,7 +8,6 @@ import Projets from './pages/Projets';
 import ProjetDetail from './pages/ProjetDetail';
 import ProjetForm from './pages/ProjetForm';
 import Users from './pages/Users';
-import Partenaires from './pages/Partenaires';
 import Categories from './pages/Categories';
 import CategorieForm from './pages/CategorieForm';
 import Layout from './components/Layout';
