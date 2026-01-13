@@ -11,14 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('partenaires', function (Blueprint $table) {
+        Schema::create('modules', function (Blueprint $table) {
             $table->id();
+            $table->string('code')->unique();
             $table->string('nom');
-            $table->string('type')->nullable(); // institution, entreprise, ONG, etc.
-            $table->string('email')->nullable();
-            $table->string('telephone')->nullable();
-            $table->text('adresse')->nullable();
-            $table->text('description')->nullable();
+            $table->text('courte_description')->nullable();
+            $table->longText('longue_description')->nullable();
             $table->timestamps();
         });
     }
@@ -28,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('partenaires');
+        Schema::dropIfExists('modules');
     }
 };
