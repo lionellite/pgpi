@@ -15,12 +15,10 @@ class Projet extends Model
         'date_fin',
         'objectif_general',
         'objectifs_specifiques',
-        'descriptions',
+        'description',
         'images',
-        'duree',
         'etat',
         'chef_projet_id',
-        'institution_initiatrice_user_id',
     ];
 
     protected function casts(): array
@@ -55,8 +53,8 @@ class Projet extends Model
 
     public function partenaires(): BelongsToMany
     {
-        return $this->belongsToMany(Partenaire::class, 'partenaire_projet', 'projet_id', 'partenaire_id')
-            ->withPivot('role', 'type')
+        return $this->belongsToMany(Categorie::class, 'categorie_projet', 'projet_id', 'categorie_id')
+            ->withPivot('role')
             ->withTimestamps();
     }
 
@@ -67,19 +65,15 @@ class Projet extends Model
             ->withTimestamps();
     }
 
-    public function institutionInitiatrice(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'institution_initiatrice_user_id');
-    }
-
-    public function institutions(): BelongsToMany
-    {
-        return $this->belongsToMany(Institution::class, 'institution_projet', 'projet_id', 'institution_id')
-            ->withPivot('role')
-            ->withTimestamps();
-    }
-
     // Helpers
+    public function getDureeAttribute(): ?string
+    {
+        if ($this->date_debut && $this->date_fin) {
+            return $this->date_debut->diff($this->date_fin)->format('%y années, %m mois, %d jours');
+        }
+        return null;
+    }
+
     public function getAvancementAttribute(): int
     {
         $activites = $this->activites;

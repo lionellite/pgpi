@@ -74,17 +74,20 @@ export default function ProjetDetail() {
   });
   const [users, setUsers] = useState([]);
   const [personnelForm, setPersonnelForm] = useState({
-    user_email: '',
+    user_id: '',
     role: '',
-    date_debut: '',
-    date_fin: '',
+  });
+  const [partenaires, setPartenaires] = useState([]);
+  const [partenaireForm, setPartenaireForm] = useState({
+    categorie_id: '',
+    role: '',
   });
 
   const [formLoading, setFormLoading] = useState(false);
 
   const canEdit = user && (
-    user.role === 'admin' || 
-    user.role === 'directeur' || 
+    user.role?.nom === 'admin' ||
+    user.role?.nom === 'directeur' ||
     projet?.chef_projet_id === user.id
   );
 
@@ -92,10 +95,20 @@ export default function ProjetDetail() {
     if (id && id !== 'new' && id !== 'edit') {
       fetchProjet();
       fetchUsers();
+      fetchPartenaires();
     } else {
       setLoading(false);
     }
   }, [id]);
+
+  const fetchPartenaires = async () => {
+    try {
+      const response = await api.get('/categories', { params: { type: 'partenaire' } });
+      setPartenaires(response.data.data || response.data);
+    } catch (err) {
+      console.error('Erreur chargement partenaires:', err);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -278,14 +291,33 @@ export default function ProjetDetail() {
       });
       await fetchProjet();
       setPersonnelForm({
-        user_email: '',
+        user_id: '',
         role: '',
-        date_debut: '',
-        date_fin: '',
       });
       setActionMessage('Personnel ajouté avec succès');
     } catch (err) {
       setError(handleFormError(err, "Erreur lors de l'ajout du personnel"));
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handlePartenaireSubmit = async (e) => {
+    e.preventDefault();
+    setFormLoading(true);
+    setActionMessage(null);
+    try {
+      await api.post(`/projets/${id}/partenaires`, {
+        ...partenaireForm,
+      });
+      await fetchProjet();
+      setPartenaireForm({
+        categorie_id: '',
+        role: '',
+      });
+      setActionMessage('Partenaire ajouté avec succès');
+    } catch (err) {
+      setError(handleFormError(err, "Erreur lors de l'ajout du partenaire"));
     } finally {
       setFormLoading(false);
     }
@@ -361,29 +393,32 @@ export default function ProjetDetail() {
               </Typography>
               <Typography><strong>Date début:</strong> {new Date(projet.date_debut).toLocaleDateString()}</Typography>
               <Typography><strong>Date fin:</strong> {new Date(projet.date_fin).toLocaleDateString()}</Typography>
-              <Typography><strong>Durée:</strong> {projet.duree} jours</Typography>
-              <Typography><strong>Chef de projet:</strong> {projet.chef_projet?.prenom} {projet.chef_projet?.nom} ({projet.chef_projet?.email})</Typography>
-              {projet.institution_initiatrice && (
-                <Typography><strong>Institution initiatrice:</strong> {projet.institution_initiatrice.prenom} {projet.institution_initiatrice.nom} ({projet.institution_initiatrice.email})</Typography>
-              )}
-              {projet.institutions && projet.institutions.length > 0 && (
-                <Typography component="div" sx={{ mt: 1 }}>
-                  <strong>Institutions liées:</strong>
-                  <Box component="ul" sx={{ mt: 0.5, pl: 2 }}>
-                    {projet.institutions.map((inst) => (
-                      <li key={inst.id}>{inst.nom} ({inst.email})</li>
-                    ))}
-                  </Box>
-                </Typography>
-              )}
+              <Typography><strong>Durée:</strong> {projet.duree}</Typography>
+              <Typography><strong>Chef de projet:</strong> {projet.chef_projet?.name} ({projet.chef_projet?.email})</Typography>
             </Paper>
           </Grid>
           <Grid item xs={12} md={6}>
             <Paper sx={{ p: 2 }}>
               <Typography variant="h6" gutterBottom>
-                Objectifs
+                Objectif Général
               </Typography>
               <Typography>{projet.objectif_general}</Typography>
+            </Paper>
+          </Grid>
+          <Grid item xs={12}>
+            <Paper sx={{ p: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                Objectifs Spécifiques
+              </Typography>
+              <Typography>{projet.objectifs_specifiques}</Typography>
+            </Paper>
+          </Grid>
+          <Grid item xs={12}>
+            <Paper sx={{ p: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                Description
+              </Typography>
+              <Typography>{projet.description}</Typography>
             </Paper>
           </Grid>
         </Grid>
@@ -581,7 +616,7 @@ export default function ProjetDetail() {
               </FormControl>
             </Box>
           </Box>
-          {(canEdit || user?.role === 'partenaire') && (
+          {(canEdit || user?.role?.nom === 'partenaire') && (
             <Box component="form" onSubmit={handleDocumentSubmit} sx={{ mb: 2, display: 'grid', gap: 2 }}>
               <TextField
                 label="Titre"
@@ -662,7 +697,7 @@ export default function ProjetDetail() {
                       setError(err.response?.data?.message || 'Erreur lors du rejet');
                     }
                   }}
-                  canValidate={user && (user.role === 'admin' || user.role === 'directeur')}
+                  canValidate={user && (user.role?.nom === 'admin' || user.role?.nom === 'directeur')}
                 />
               ))}
             </Box>
@@ -726,7 +761,7 @@ export default function ProjetDetail() {
               </FormControl>
             </Box>
           </Box>
-          {(canEdit || user?.role === 'partenaire') && (
+          {(canEdit || user?.role?.nom === 'partenaire') && (
             <Box component="form" onSubmit={handleMediaSubmit} sx={{ mb: 2, display: 'grid', gap: 2 }}>
               <TextField
                 label="Titre"
@@ -807,10 +842,10 @@ export default function ProjetDetail() {
             <Box component="form" onSubmit={handlePersonnelSubmit} sx={{ mb: 2, display: 'grid', gap: 2 }}>
               <Autocomplete
                 options={users}
-                getOptionLabel={(option) => `${option.prenom} ${option.nom} (${option.email})`}
-                value={users.find(u => u.email === personnelForm.user_email) || null}
+                getOptionLabel={(option) => option.name}
+                value={users.find(u => u.id === personnelForm.user_id) || null}
                 onChange={(e, newValue) => {
-                  setPersonnelForm({ ...personnelForm, user_email: newValue?.email || '' });
+                  setPersonnelForm({ ...personnelForm, user_id: newValue?.id || '' });
                 }}
                 renderInput={(params) => (
                   <TextField
@@ -819,18 +854,6 @@ export default function ProjetDetail() {
                     required
                   />
                 )}
-                renderOption={(props, option) => (
-                  <Box component="li" {...props}>
-                    <Box>
-                      <Typography variant="body1">
-                        {option.prenom} {option.nom}
-                      </Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        {option.email} - {option.role}
-                      </Typography>
-                    </Box>
-                  </Box>
-                )}
               />
               <TextField
                 label="Rôle sur le projet"
@@ -838,29 +861,6 @@ export default function ProjetDetail() {
                 onChange={(e) => setPersonnelForm({ ...personnelForm, role: e.target.value })}
                 required
               />
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    label="Date début"
-                    type="date"
-                    fullWidth
-                    InputLabelProps={{ shrink: true }}
-                    value={personnelForm.date_debut}
-                    onChange={(e) => setPersonnelForm({ ...personnelForm, date_debut: e.target.value })}
-                    required
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    label="Date fin"
-                    type="date"
-                    fullWidth
-                    InputLabelProps={{ shrink: true }}
-                    value={personnelForm.date_fin}
-                    onChange={(e) => setPersonnelForm({ ...personnelForm, date_fin: e.target.value })}
-                  />
-                </Grid>
-              </Grid>
               <Box display="flex" justifyContent="flex-end">
                 <Button type="submit" variant="contained" startIcon={<AddIcon />} disabled={formLoading}>
                   {formLoading ? 'Enregistrement...' : 'Ajouter au projet'}
@@ -876,7 +876,7 @@ export default function ProjetDetail() {
                   <Card>
                     <CardContent>
                       <Typography variant="h6" gutterBottom>
-                        {personne.prenom} {personne.nom}
+                        {personne.name}
                       </Typography>
                       <Chip label={personne.pivot?.role} size="small" sx={{ mb: 1 }} />
                       <Typography variant="body2" color="text.secondary">
@@ -906,6 +906,37 @@ export default function ProjetDetail() {
           <Typography variant="h6" gutterBottom>
             Partenaires
           </Typography>
+          {canEdit && (
+            <Box component="form" onSubmit={handlePartenaireSubmit} sx={{ mb: 2, display: 'grid', gap: 2 }}>
+              <Autocomplete
+                options={partenaires}
+                getOptionLabel={(option) => option.name}
+                value={partenaires.find(p => p.id === partenaireForm.categorie_id) || null}
+                onChange={(e, newValue) => {
+                  setPartenaireForm({ ...partenaireForm, categorie_id: newValue?.id || '' });
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Partenaire"
+                    required
+                  />
+                )}
+              />
+              <TextField
+                label="Rôle sur le projet"
+                value={partenaireForm.role}
+                onChange={(e) => setPartenaireForm({ ...partenaireForm, role: e.target.value })}
+                required
+              />
+              <Box display="flex" justifyContent="flex-end">
+                <Button type="submit" variant="contained" startIcon={<AddIcon />} disabled={formLoading}>
+                  {formLoading ? 'Enregistrement...' : 'Ajouter au projet'}
+                </Button>
+              </Box>
+              <Divider />
+            </Box>
+          )}
           {projet.partenaires && projet.partenaires.length > 0 ? (
             <Grid container spacing={2}>
               {projet.partenaires.map((partenaire) => (
@@ -913,7 +944,7 @@ export default function ProjetDetail() {
                   <Card>
                     <CardContent>
                       <Typography variant="h6" gutterBottom>
-                        {partenaire.nom}
+                        {partenaire.name}
                       </Typography>
                       {partenaire.pivot?.role && (
                         <Chip label={partenaire.pivot.role} size="small" sx={{ mb: 1 }} />

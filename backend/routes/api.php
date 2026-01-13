@@ -6,9 +6,8 @@ use App\Http\Controllers\Api\ProjetController;
 use App\Http\Controllers\Api\ActiviteProjetController;
 use App\Http\Controllers\Api\MediaProjetController;
 use App\Http\Controllers\Api\DocumentProjetController;
-use App\Http\Controllers\Api\PartenaireController;
 use App\Http\Controllers\Api\UserController;
-use App\Http\Controllers\Api\InstitutionController;
+use App\Http\Controllers\Api\CategorieController;
 use Illuminate\Support\Facades\Route;
 
 // Routes d'authentification (publiques)
@@ -42,20 +41,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/documents/{document}/valider', [DocumentProjetController::class, 'valider']);
     Route::post('/documents/{document}/rejeter', [DocumentProjetController::class, 'rejeter']);
 
-    // Partenaires
-    Route::apiResource('partenaires', PartenaireController::class);
-    Route::post('/projets/{projet}/partenaires', [ProjetController::class, 'attachPartenaire']);
-    Route::delete('/projets/{projet}/partenaires/{partenaire}', [ProjetController::class, 'detachPartenaire']);
+    // Categories
+    Route::apiResource('categories', CategorieController::class);
 
-    // Personnel
+    // Personnel et Partenaires
     Route::post('/projets/{projet}/personnel', [ProjetController::class, 'attachPersonnel']);
     Route::delete('/projets/{projet}/personnel/{user}', [ProjetController::class, 'detachPersonnel']);
+    Route::post('/projets/{projet}/partenaires', [ProjetController::class, 'attachPartenaire']);
+    Route::delete('/projets/{projet}/partenaires/{categorie}', [ProjetController::class, 'detachPartenaire']);
 
     // Utilisateurs (admin seulement)
     Route::apiResource('users', UserController::class);
-
-    // Institutions
-    Route::apiResource('institutions', InstitutionController::class);
 
     // Téléchargement de fichiers
     Route::get('/medias/{media}/download', [MediaProjetController::class, 'download']);

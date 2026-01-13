@@ -18,9 +18,8 @@ return new class extends Migration
             $table->date('date_fin');
             $table->text('objectif_general');
             $table->text('objectifs_specifiques')->nullable();
-            $table->text('descriptions')->nullable();
+            $table->text('description')->nullable();
             $table->json('images')->nullable(); // Array d'URLs d'images
-            $table->integer('duree')->nullable(); // Durée en jours
             $table->enum('etat', ['planifie', 'en_cours', 'suspendu', 'cloture', 'archive'])->default('planifie');
             $table->foreignId('chef_projet_id')->nullable()->constrained('users')->onDelete('set null');
             $table->timestamps();

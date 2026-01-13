@@ -19,12 +19,18 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'nom',
-        'prenom',
+        'name',
         'email',
         'password',
-        'role',
-        'departement',
+        'role_id',
+        'status',
+        'photo_url',
+        'sexe',
+        'nom',
+        'prenoms',
+        'date_inscription',
+        'last_login_at',
+        'module_id',
     ];
 
     /**
@@ -45,12 +51,22 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'date_inscription' => 'datetime',
+            'last_login_at' => 'datetime',
         ];
     }
 
-    // Relations
+    public function role(): BelongsTo
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    public function module(): BelongsTo
+    {
+        return $this->belongsTo(Module::class);
+    }
+
     public function projetsDiriges()
     {
         return $this->hasMany(Projet::class, 'chef_projet_id');
@@ -59,28 +75,7 @@ class User extends Authenticatable
     public function projets()
     {
         return $this->belongsToMany(Projet::class, 'personnel_projet', 'user_id', 'projet_id')
-            ->withPivot('role', 'date_debut', 'date_fin')
+            ->withPivot('role')
             ->withTimestamps();
-    }
-
-    public function documents()
-    {
-        return $this->hasMany(DocumentProjet::class, 'derniere_mise_a_jour_par');
-    }
-
-    // Helpers pour les rôles
-    public function isAdmin(): bool
-    {
-        return $this->role === 'admin';
-    }
-
-    public function isDirecteur(): bool
-    {
-        return $this->role === 'directeur';
-    }
-
-    public function isChefProjet(): bool
-    {
-        return $this->role === 'chef_projet';
     }
 }
