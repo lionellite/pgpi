@@ -24,6 +24,7 @@ import {
   FormControl,
   InputLabel,
   Select,
+  Pagination,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
@@ -45,6 +46,20 @@ export default function ProjetDetail() {
   // Filtres et tri pour médias et documents
   const [mediaFilters, setMediaFilters] = useState({ type: '', search: '', sort_by: 'created_at', sort_order: 'desc' });
   const [documentFilters, setDocumentFilters] = useState({ type: '', etat: '', search: '', sort_by: 'created_at', sort_order: 'desc' });
+  
+  // Pagination pour médias et documents
+  const [mediaPagination, setMediaPagination] = useState({
+    current_page: 1,
+    last_page: 1,
+    per_page: 12,
+    total: 0,
+  });
+  const [documentPagination, setDocumentPagination] = useState({
+    current_page: 1,
+    last_page: 1,
+    per_page: 12,
+    total: 0,
+  });
 
   // Forms state
   const [activiteForm, setActiviteForm] = useState({
@@ -149,10 +164,22 @@ export default function ProjetDetail() {
       if (mediaFilters.search) params.search = mediaFilters.search;
       params.sort_by = mediaFilters.sort_by;
       params.sort_order = mediaFilters.sort_order;
+      params.page = mediaPagination.current_page;
+      params.per_page = mediaPagination.per_page;
       
       const response = await api.get(`/projets/${id}/medias`, { params });
       const medias = response.data.data || response.data;
-      setProjet(prev => ({ ...prev, medias }));
+      setProjet(prev => ({ ...prev, medias: Array.isArray(medias) ? medias : [] }));
+      
+      // Mettre à jour la pagination
+      if (response.data.meta) {
+        setMediaPagination({
+          current_page: response.data.meta.current_page,
+          last_page: response.data.meta.last_page,
+          per_page: response.data.meta.per_page,
+          total: response.data.meta.total,
+        });
+      }
     } catch (err) {
       console.error('Erreur chargement médias:', err);
     }
@@ -166,10 +193,22 @@ export default function ProjetDetail() {
       if (documentFilters.search) params.search = documentFilters.search;
       params.sort_by = documentFilters.sort_by;
       params.sort_order = documentFilters.sort_order;
+      params.page = documentPagination.current_page;
+      params.per_page = documentPagination.per_page;
       
       const response = await api.get(`/projets/${id}/documents`, { params });
       const documents = response.data.data || response.data;
-      setProjet(prev => ({ ...prev, documents }));
+      setProjet(prev => ({ ...prev, documents: Array.isArray(documents) ? documents : [] }));
+      
+      // Mettre à jour la pagination
+      if (response.data.meta) {
+        setDocumentPagination({
+          current_page: response.data.meta.current_page,
+          last_page: response.data.meta.last_page,
+          per_page: response.data.meta.per_page,
+          total: response.data.meta.total,
+        });
+      }
     } catch (err) {
       console.error('Erreur chargement documents:', err);
     }
@@ -179,13 +218,22 @@ export default function ProjetDetail() {
     if (tab === 3 && projet) {
       fetchMedias();
     }
-  }, [tab, mediaFilters]);
+  }, [tab, mediaFilters, mediaPagination.current_page]);
 
   useEffect(() => {
     if (tab === 2 && projet) {
       fetchDocuments();
     }
-  }, [tab, documentFilters]);
+  }, [tab, documentFilters, documentPagination.current_page]);
+
+  // Réinitialiser la pagination quand les filtres changent
+  useEffect(() => {
+    setMediaPagination(prev => ({ ...prev, current_page: 1 }));
+  }, [mediaFilters.type, mediaFilters.search, mediaFilters.sort_by, mediaFilters.sort_order]);
+
+  useEffect(() => {
+    setDocumentPagination(prev => ({ ...prev, current_page: 1 }));
+  }, [documentFilters.type, documentFilters.etat, documentFilters.search, documentFilters.sort_by, documentFilters.sort_order]);
 
   const handleFormError = (err, fallback) => {
     const errors = err.response?.data?.errors;
@@ -459,6 +507,16 @@ export default function ProjetDetail() {
               <Typography><strong>Durée:</strong> {projet.duree} jours</Typography>
               <Typography><strong>Chef de projet:</strong> {projet.chef_projet?.prenom} {projet.chef_projet?.nom} ({projet.chef_projet?.email})</Typography>
               <Typography><strong>État:</strong> {projet.etat}</Typography>
+              {projet.services && projet.services.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle1" gutterBottom>Services associés</Typography>
+                  <Box display="flex" gap={1} flexWrap="wrap">
+                    {projet.services.map((service) => (
+                      <Chip key={service.id} label={service.titre || service.code || `Service ${service.id}`} />
+                    ))}
+                  </Box>
+                </Box>
+              )}
             </Paper>
           </Grid>
           <Grid item xs={12} md={6}>
@@ -480,6 +538,69 @@ export default function ProjetDetail() {
                   <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>{projet.descriptions}</Typography>
                 </>
               )}
+            </Paper>
+          </Grid>
+          <Grid item xs={12}>
+            <Paper sx={{ p: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                Équipe & partenaires
+              </Typography>
+
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle1" gutterBottom>Personnel</Typography>
+                  {projet.personnel && projet.personnel.length > 0 ? (
+                    <List dense>
+                      {projet.personnel.map((p) => (
+                        <ListItem key={p.id} divider>
+                          <ListItemText
+                            primary={`${p.prenom} ${p.nom}`}
+                            secondary={
+                              <>
+                                <span>{p.email}</span>
+                                {p.pivot?.role ? <span>{` — ${p.pivot.role}`}</span> : null}
+                                {p.service?.titre || p.service?.code ? (
+                                  <span>{` — Service: ${p.service.titre || p.service.code}`}</span>
+                                ) : null}
+                              </>
+                            }
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      Aucun personnel assigné
+                    </Typography>
+                  )}
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle1" gutterBottom>Partenaires</Typography>
+                  {projet.partenaires && projet.partenaires.length > 0 ? (
+                    <List dense>
+                      {projet.partenaires.map((p) => (
+                        <ListItem key={p.id} divider>
+                          <ListItemText
+                            primary={p.nom}
+                            secondary={
+                              <>
+                                <span>{p.email || '—'}</span>
+                                {p.pivot?.role ? <span>{` — ${p.pivot.role}`}</span> : null}
+                                {p.point_contact ? <span>{` — Contact: ${p.point_contact}`}</span> : null}
+                              </>
+                            }
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      Aucun partenaire associé
+                    </Typography>
+                  )}
+                </Grid>
+              </Grid>
             </Paper>
           </Grid>
         </Grid>
@@ -767,6 +888,16 @@ export default function ProjetDetail() {
               Aucun document disponible
             </Typography>
           )}
+          {documentPagination.last_page > 1 && (
+            <Box display="flex" justifyContent="center" mt={3}>
+              <Pagination
+                count={documentPagination.last_page}
+                page={documentPagination.current_page}
+                onChange={(event, value) => setDocumentPagination(prev => ({ ...prev, current_page: value }))}
+                color="primary"
+              />
+            </Box>
+          )}
         </Paper>
       )}
 
@@ -891,6 +1022,16 @@ export default function ProjetDetail() {
               Aucun média disponible
             </Typography>
           )}
+          {mediaPagination.last_page > 1 && (
+            <Box display="flex" justifyContent="center" mt={3}>
+              <Pagination
+                count={mediaPagination.last_page}
+                page={mediaPagination.current_page}
+                onChange={(event, value) => setMediaPagination(prev => ({ ...prev, current_page: value }))}
+                color="primary"
+              />
+            </Box>
+          )}
         </Paper>
       )}
 
@@ -978,6 +1119,11 @@ export default function ProjetDetail() {
                       <Typography variant="body2" color="text.secondary">
                         {personne.email}
                       </Typography>
+                      {personne.service && (
+                        <Typography variant="body2" color="text.secondary">
+                          Service: {personne.service.titre || personne.service.code}
+                        </Typography>
+                      )}
                       {personne.pivot?.date_debut && (
                         <Typography variant="caption" color="text.secondary" display="block">
                           Du {new Date(personne.pivot.date_debut).toLocaleDateString()}

@@ -36,6 +36,11 @@ class Service extends Model
         return $this->hasMany(Service::class, 'id_parent');
     }
 
+    public function personnels(): HasMany
+    {
+        return $this->hasMany(User::class, 'service_id');
+    }
+
     public function gerants(): HasMany
     {
         return $this->hasMany(ServiceGerant::class, 'service_id');
@@ -45,5 +50,11 @@ class Service extends Model
     {
         return $this->hasMany(ServiceGerant::class, 'service_id')
             ->where('statut', 'actif');
+    }
+
+    public function projets(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Projet::class, 'projet_service', 'service_id', 'projet_id')
+            ->withTimestamps();
     }
 }

@@ -44,7 +44,9 @@ class DocumentProjetController extends Controller
         $sortOrder = $request->get('sort_order', 'desc');
         $query->orderBy($sortBy, $sortOrder);
         
-        $documents = $query->get();
+        // Pagination
+        $perPage = $request->get('per_page', 12);
+        $documents = $query->paginate($perPage);
         
         return DocumentProjetResource::collection($documents);
     }

@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\DocumentProjetController;
 use App\Http\Controllers\Api\PartenaireController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\InstitutionController;
+use App\Http\Controllers\Api\ServiceController;
 use Illuminate\Support\Facades\Route;
 
 // Routes d'authentification (publiques)
@@ -46,6 +47,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('partenaires', PartenaireController::class);
     Route::post('/projets/{projet}/partenaires', [ProjetController::class, 'attachPartenaire']);
     Route::delete('/projets/{projet}/partenaires/{partenaire}', [ProjetController::class, 'detachPartenaire']);
+
+    // Services
+    Route::apiResource('services', ServiceController::class);
 
     // Personnel
     Route::post('/projets/{projet}/personnel', [ProjetController::class, 'attachPersonnel']);

@@ -26,7 +26,7 @@ class ProjetController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $user = $request->user();
-        $query = Projet::with(['chefProjet', 'activites', 'personnel', 'partenaires']);
+        $query = Projet::with(['chefProjet', 'activites', 'personnel.service', 'partenaires', 'services']);
 
         // Filtres selon le rôle
         if ($user->isChef()) {
@@ -54,6 +54,11 @@ class ProjetController extends Controller
         }
         if ($request->has('date_fin')) {
             $query->where('date_fin', '<=', $request->date_fin);
+        }
+        if ($request->has('service_id')) {
+            $query->whereHas('services', function ($q) use ($request) {
+                $q->where('services.id', $request->service_id);
+            });
         }
 
         $perPage = $request->get('per_page', 15);
@@ -107,6 +112,10 @@ class ProjetController extends Controller
         $personnelData = $data['personnel'] ?? [];
         unset($data['personnel']);
 
+        // Gérer les services
+        $servicesIds = $data['services'] ?? [];
+        unset($data['services']);
+
         $projet = Projet::create($data);
 
         // Attacher les partenaires avec leurs rôles
@@ -141,7 +150,12 @@ class ProjetController extends Controller
             }
         }
 
-        $projet->load(['chefProjet', 'activites', 'personnel', 'partenaires']);
+        // Attacher les services
+        if (!empty($servicesIds)) {
+            $projet->services()->sync($servicesIds);
+        }
+
+        $projet->load(['chefProjet', 'activites', 'personnel', 'partenaires', 'services']);
 
         return response()->json([
             'message' => 'Projet créé avec succès',
@@ -154,7 +168,7 @@ class ProjetController extends Controller
      */
     public function show(Projet $projet): JsonResponse
     {
-        $projet->load(['chefProjet', 'activites', 'medias', 'documents', 'personnel', 'partenaires']);
+        $projet->load(['chefProjet', 'activites', 'medias', 'documents', 'personnel.service', 'partenaires', 'services']);
         
         return response()->json([
             'data' => new ProjetResource($projet)
@@ -225,8 +239,15 @@ class ProjetController extends Controller
             $projet->personnel()->sync($personnelSync);
         }
 
+        // Gérer les services
+        if (isset($data['services'])) {
+            $serviceIds = $data['services'] ?? [];
+            unset($data['services']);
+            $projet->services()->sync($serviceIds);
+        }
+
         $projet->update($data);
-        $projet->load(['chefProjet', 'activites', 'personnel', 'partenaires']);
+        $projet->load(['chefProjet', 'activites', 'personnel', 'partenaires', 'services']);
 
         return response()->json([
             'message' => 'Projet mis à jour avec succès',
@@ -282,7 +303,7 @@ class ProjetController extends Controller
         }
 
         $projet->update(['etat' => 'archive']);
-        $projet->load(['chefProjet', 'activites', 'personnel', 'partenaires']);
+        $projet->load(['chefProjet', 'activites', 'personnel', 'partenaires', 'services']);
 
         return response()->json([
             'message' => 'Projet archivé avec succès',
@@ -302,7 +323,7 @@ class ProjetController extends Controller
         }
 
         $projet->update(['etat' => 'cloture']);
-        $projet->load(['chefProjet', 'activites', 'personnel', 'partenaires']);
+        $projet->load(['chefProjet', 'activites', 'personnel', 'partenaires', 'services']);
 
         return response()->json([
             'message' => 'Projet clôturé avec succès',

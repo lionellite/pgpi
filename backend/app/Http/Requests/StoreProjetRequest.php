@@ -12,7 +12,15 @@ class StoreProjetRequest extends FormRequest
     public function authorize(): bool
     {
         $user = $this->user();
-        return in_array($user->role, ['admin', 'directeur', 'chef']);
+
+        if (!$user) {
+            return false;
+        }
+
+        // Utilise les helpers de rôle basés sur la relation Role
+        return $user->isAdmin()
+            || $user->isDirecteur()
+            || $user->isChef();
     }
 
     /**
@@ -38,6 +46,8 @@ class StoreProjetRequest extends FormRequest
             'personnel.*.role' => 'required|string|max:255',
             'personnel.*.date_debut' => 'nullable|date',
             'personnel.*.date_fin' => 'nullable|date|after:personnel.*.date_debut',
+            'services' => 'nullable|array',
+            'services.*' => 'required|exists:services,id',
             'images' => 'nullable|array',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
         ];

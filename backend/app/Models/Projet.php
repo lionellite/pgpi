@@ -66,6 +66,12 @@ class Projet extends Model
             ->withTimestamps();
     }
 
+    public function services(): BelongsToMany
+    {
+        return $this->belongsToMany(Service::class, 'projet_service', 'projet_id', 'service_id')
+            ->withTimestamps();
+    }
+
 
     // Helpers
     public function getAvancementAttribute(): int

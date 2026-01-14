@@ -23,6 +23,7 @@ import {
   FormControl,
   InputLabel,
   Select,
+  Autocomplete,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -37,19 +38,25 @@ export default function Users() {
   const [search, setSearch] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [services, setServices] = useState([]);
   const [formData, setFormData] = useState({
     nom: '',
     prenom: '',
     email: '',
     password: '',
-    role: 'membre',
+    role: 'personnel',
     departement: '',
+    service_id: null,
   });
   const { user: currentUser } = useAuth();
 
   useEffect(() => {
     fetchUsers();
   }, [search]);
+
+  useEffect(() => {
+    fetchServices();
+  }, []);
 
   const fetchUsers = async () => {
     try {
@@ -74,6 +81,7 @@ export default function Users() {
         password: '',
         role: user.role,
         departement: user.departement || '',
+        service_id: user.service_id || null,
       });
     } else {
       setEditingUser(null);
@@ -84,6 +92,7 @@ export default function Users() {
         password: '',
         role: 'personnel',
         departement: '',
+        service_id: null,
       });
     }
     setOpenDialog(true);
@@ -97,6 +106,12 @@ export default function Users() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+
+    // Validation simple côté client pour éviter les 422 basiques
+    if (!editingUser && (!formData.password || formData.password.length < 8)) {
+      setError('Le mot de passe doit contenir au moins 8 caractères.');
+      return;
+    }
 
     try {
       const data = { ...formData };
@@ -113,7 +128,22 @@ export default function Users() {
       handleCloseDialog();
       fetchUsers();
     } catch (err) {
-      setError(err.response?.data?.message || 'Erreur lors de la sauvegarde');
+      const errors = err.response?.data?.errors;
+      if (errors) {
+        const message = Object.values(errors).flat().join(', ');
+        setError(message);
+      } else {
+        setError(err.response?.data?.message || 'Erreur lors de la sauvegarde');
+      }
+    }
+  };
+
+  const fetchServices = async () => {
+    try {
+      const response = await api.get('/services', { params: { per_page: 200 } });
+      setServices(response.data.data || response.data);
+    } catch (err) {
+      console.error('Erreur chargement services:', err);
     }
   };
 
@@ -186,6 +216,7 @@ export default function Users() {
               <TableCell>Email</TableCell>
               <TableCell>Rôle</TableCell>
               <TableCell>Département</TableCell>
+              <TableCell>Service</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -212,6 +243,7 @@ export default function Users() {
                     />
                   </TableCell>
                   <TableCell>{user.departement || '-'}</TableCell>
+                  <TableCell>{user.service?.titre || user.service?.code || '-'}</TableCell>
                   <TableCell>
                     <IconButton
                       size="small"
@@ -298,6 +330,20 @@ export default function Users() {
                 value={formData.departement}
                 onChange={(e) => setFormData({ ...formData, departement: e.target.value })}
                 fullWidth
+              />
+              <Autocomplete
+                options={services}
+                getOptionLabel={(option) => option.titre || option.code || 'Service'}
+                value={services.find((s) => s.id === formData.service_id) || null}
+                onChange={(e, newValue) => setFormData({ ...formData, service_id: newValue?.id || null })}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Service"
+                    placeholder="Assigner un service"
+                    fullWidth
+                  />
+                )}
               />
             </Box>
           </DialogContent>

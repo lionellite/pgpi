@@ -17,7 +17,10 @@ class UserResource extends JsonResource
         return [
             'id' => $this->id,
             'role_id' => $this->role_id,
-            'role' => $this->whenLoaded('role', function () {
+            // Pour compatibilité frontend : rôle sous forme de chaîne
+            'role' => $this->role?->nom,
+            // Détail complet du rôle si chargé
+            'role_detail' => $this->whenLoaded('role', function () {
                 return [
                     'id' => $this->role->id,
                     'nom' => $this->role->nom,
@@ -35,6 +38,14 @@ class UserResource extends JsonResource
             'date_inscription' => $this->date_inscription?->toDateTimeString(),
             'last_login_at' => $this->last_login_at?->toDateTimeString(),
             'module_id' => $this->module_id,
+            'service_id' => $this->service_id,
+            'service' => $this->whenLoaded('service', function () {
+                return [
+                    'id' => $this->service->id,
+                    'titre' => $this->service->titre,
+                    'code' => $this->service->code,
+                ];
+            }),
             'module' => $this->whenLoaded('module', function () {
                 return [
                     'id' => $this->module->id,

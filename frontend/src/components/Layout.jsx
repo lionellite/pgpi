@@ -18,6 +18,8 @@ import {
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import FolderIcon from '@mui/icons-material/Folder';
 import PeopleIcon from '@mui/icons-material/People';
+import BusinessIcon from '@mui/icons-material/Business';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import { useAuth } from '../contexts/AuthContext';
 import { useState } from 'react';
 
@@ -32,7 +34,15 @@ export default function Layout() {
   const menuItems = [
     { text: 'Tableau de bord', icon: <DashboardIcon />, path: '/' },
     { text: 'Projets', icon: <FolderIcon />, path: '/projets' },
-    ...(user?.role === 'admin' ? [{ text: 'Utilisateurs', icon: <PeopleIcon />, path: '/users' }] : []),
+    ...(user?.role === 'admin'
+      ? [
+          { text: 'Utilisateurs', icon: <PeopleIcon />, path: '/users' },
+          { text: 'Partenaires', icon: <BusinessIcon />, path: '/partenaires' },
+        ]
+      : []),
+    ...(['admin', 'directeur'].includes(user?.role)
+      ? [{ text: 'Services', icon: <AccountTreeIcon />, path: '/services' }]
+      : []),
   ];
 
   const handleDrawerToggle = () => {

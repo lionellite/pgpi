@@ -8,6 +8,8 @@ import Projets from './pages/Projets';
 import ProjetDetail from './pages/ProjetDetail';
 import ProjetForm from './pages/ProjetForm';
 import Users from './pages/Users';
+import Partenaires from './pages/Partenaires';
+import Services from './pages/Services';
 import Layout from './components/Layout';
 
 const theme = createTheme({
@@ -79,6 +81,8 @@ function AppRoutes() {
         <Route path="projets/:id/edit" element={<ProjetForm />} />
         <Route path="projets/:id" element={<ProjetDetail />} />
         <Route path="users" element={<Users />} />
+        <Route path="partenaires" element={<Partenaires />} />
+        <Route path="services" element={<Services />} />
       </Route>
     </Routes>
   );

@@ -33,6 +33,7 @@ class User extends Authenticatable
         'date_inscription',
         'last_login_at',
         'module_id',
+        'service_id',
     ];
 
     protected function casts(): array
@@ -62,6 +63,11 @@ class User extends Authenticatable
     public function module(): BelongsTo
     {
         return $this->belongsTo(Module::class);
+    }
+
+    public function service(): BelongsTo
+    {
+        return $this->belongsTo(Service::class);
     }
 
     public function projetsDiriges()
@@ -110,11 +116,5 @@ class User extends Authenticatable
     public function isPersonnel(): bool
     {
         return $this->role && strtolower($this->role->nom) === 'personnel';
-    }
-
-    // Accessor pour compatibilité avec l'ancien code
-    public function getRoleAttribute()
-    {
-        return $this->role ? $this->role->nom : null;
     }
 }

@@ -33,6 +33,7 @@ export default function ProjetForm() {
   const [error, setError] = useState(null);
   const [users, setUsers] = useState([]);
   const [partenaires, setPartenaires] = useState([]);
+  const [services, setServices] = useState([]);
   
   const [formData, setFormData] = useState({
     titre: '',
@@ -44,12 +45,14 @@ export default function ProjetForm() {
     chef_projet_email: user?.email || '',
     partenaires: [],
     personnel: [],
+    services: [],
     etat: 'planifie',
   });
 
   useEffect(() => {
     fetchUsers();
     fetchPartenaires();
+    fetchServices();
     if (isEdit) {
       fetchProjet();
     }
@@ -70,6 +73,15 @@ export default function ProjetForm() {
       setPartenaires(response.data.data || response.data);
     } catch (err) {
       console.error('Erreur chargement partenaires:', err);
+    }
+  };
+
+  const fetchServices = async () => {
+    try {
+      const response = await api.get('/services', { params: { per_page: 1000 } });
+      setServices(response.data.data || response.data);
+    } catch (err) {
+      console.error('Erreur chargement services:', err);
     }
   };
 
@@ -97,6 +109,7 @@ export default function ProjetForm() {
           date_debut: p.pivot?.date_debut ? p.pivot.date_debut.split('T')[0] : '',
           date_fin: p.pivot?.date_fin ? p.pivot.date_fin.split('T')[0] : '',
         })) || [],
+        services: projet.services?.map(s => s.id) || [],
         etat: projet.etat || 'planifie',
       });
     } catch (err) {
@@ -312,6 +325,37 @@ export default function ProjetForm() {
                 onChange={handleChange}
                 multiline
                 rows={4}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <Autocomplete
+                multiple
+                options={services}
+                getOptionLabel={(option) => option.titre || option.code || 'Service'}
+                value={services.filter(s => formData.services.includes(s.id))}
+                onChange={(e, newValue) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    services: newValue.map(v => v.id),
+                  }));
+                }}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      key={option.id}
+                      label={option.titre || option.code || `Service ${option.id}`}
+                      {...getTagProps({ index })}
+                    />
+                  ))
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Services associés"
+                    placeholder="Sélectionner un ou plusieurs services"
+                  />
+                )}
               />
             </Grid>
 

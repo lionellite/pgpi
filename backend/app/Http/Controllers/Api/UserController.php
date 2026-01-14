@@ -25,7 +25,7 @@ class UserController extends Controller
             abort(403, 'Accès refusé');
         }
 
-        $query = User::query();
+        $query = User::query()->with('service');
 
         if ($request->has('search')) {
             $search = $request->search;
@@ -64,6 +64,7 @@ class UserController extends Controller
             'password' => 'required|string|min:8',
             'role' => 'required|in:admin,directeur,chef,personnel,apprenant',
             'departement' => 'nullable|string|max:255',
+            'service_id' => 'nullable|exists:services,id',
         ]);
 
         $newUser = User::create([
@@ -73,6 +74,7 @@ class UserController extends Controller
             'password' => Hash::make($request->password),
             'role' => $request->role,
             'departement' => $request->departement,
+            'service_id' => $request->service_id,
         ]);
 
         return response()->json([
@@ -91,6 +93,8 @@ class UserController extends Controller
         if (!$requestUser->isAdmin() && $requestUser->id !== $user->id) {
             abort(403, 'Accès refusé');
         }
+
+        $user->load('service');
 
         return response()->json([
             'data' => new UserResource($user)
@@ -115,9 +119,10 @@ class UserController extends Controller
             'password' => 'nullable|string|min:8',
             'role' => ['sometimes', 'required', 'in:admin,directeur,chef,personnel,apprenant'],
             'departement' => 'nullable|string|max:255',
+            'service_id' => 'nullable|exists:services,id',
         ]);
 
-        $data = $request->only(['nom', 'prenom', 'email', 'role', 'departement']);
+        $data = $request->only(['nom', 'prenom', 'email', 'role', 'departement', 'service_id']);
 
         if ($request->has('password')) {
             $data['password'] = Hash::make($request->password);

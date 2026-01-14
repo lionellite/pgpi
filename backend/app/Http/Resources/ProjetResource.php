@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Http\Resources\ServiceResource;
 
 class ProjetResource extends JsonResource
 {
@@ -33,6 +34,7 @@ class ProjetResource extends JsonResource
             'documents' => DocumentProjetResource::collection($this->whenLoaded('documents')),
             'personnel' => UserResource::collection($this->whenLoaded('personnel')),
             'partenaires' => PartenaireResource::collection($this->whenLoaded('partenaires')),
+            'services' => ServiceResource::collection($this->whenLoaded('services')),
             'created_at' => $this->created_at->toDateTimeString(),
             'updated_at' => $this->updated_at->toDateTimeString(),
         ];

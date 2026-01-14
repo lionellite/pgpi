@@ -12,7 +12,14 @@ class StorePartenaireRequest extends FormRequest
     public function authorize(): bool
     {
         $user = $this->user();
-        return in_array($user->role, ['admin', 'directeur', 'chef']);
+
+        if (!$user) {
+            return false;
+        }
+
+        return $user->isAdmin()
+            || $user->isDirecteur()
+            || $user->isChef();
     }
 
     /**
