@@ -85,12 +85,6 @@ export default function ProjetDetail() {
 
   const [formLoading, setFormLoading] = useState(false);
 
-  const canEdit = user && (
-    user.role?.nom === 'admin' ||
-    user.role?.nom === 'directeur' ||
-    projet?.chef_projet_id === user.id
-  );
-
   useEffect(() => {
     if (id && id !== 'new' && id !== 'edit') {
       fetchProjet();
@@ -346,7 +340,7 @@ export default function ProjetDetail() {
         <Typography variant="h4">
           {projet.titre}
         </Typography>
-        {canEdit && (
+        {(user?.role?.nom === 'admin' || user?.role?.nom === 'directeur' || projet?.chef_projet_id === user?.id) && (
           <Button
             variant="contained"
             startIcon={<EditIcon />}
@@ -429,7 +423,7 @@ export default function ProjetDetail() {
           <Typography variant="h6" gutterBottom>
             Activités
           </Typography>
-          {canEdit && (
+          {(user?.role?.nom === 'admin' || user?.role?.nom === 'directeur' || projet?.chef_projet_id === user?.id) && (
             <Box component="form" onSubmit={handleActiviteSubmit} sx={{ mb: 2, display: 'grid', gap: 2 }}>
               <TextField
                 label="Titre"
@@ -616,7 +610,7 @@ export default function ProjetDetail() {
               </FormControl>
             </Box>
           </Box>
-          {(canEdit || user?.role?.nom === 'partenaire') && (
+          {(user?.role?.nom === 'admin' || user?.role?.nom === 'directeur' || projet?.chef_projet_id === user?.id || user?.role?.nom === 'partenaire') && (
             <Box component="form" onSubmit={handleDocumentSubmit} sx={{ mb: 2, display: 'grid', gap: 2 }}>
               <TextField
                 label="Titre"
@@ -697,7 +691,7 @@ export default function ProjetDetail() {
                       setError(err.response?.data?.message || 'Erreur lors du rejet');
                     }
                   }}
-                  canValidate={user && (user.role?.nom === 'admin' || user.role?.nom === 'directeur')}
+                  canValidate={user && (user?.role?.nom === 'admin' || user?.role?.nom === 'directeur')}
                 />
               ))}
             </Box>
@@ -761,7 +755,7 @@ export default function ProjetDetail() {
               </FormControl>
             </Box>
           </Box>
-          {(canEdit || user?.role?.nom === 'partenaire') && (
+          {(user?.role?.nom === 'admin' || user?.role?.nom === 'directeur' || projet?.chef_projet_id === user?.id || user?.role?.nom === 'partenaire') && (
             <Box component="form" onSubmit={handleMediaSubmit} sx={{ mb: 2, display: 'grid', gap: 2 }}>
               <TextField
                 label="Titre"

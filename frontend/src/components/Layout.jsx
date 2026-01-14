@@ -32,7 +32,8 @@ export default function Layout() {
   const menuItems = [
     { text: 'Tableau de bord', icon: <DashboardIcon />, path: '/' },
     { text: 'Projets', icon: <FolderIcon />, path: '/projets' },
-    ...(user?.role === 'admin' ? [{ text: 'Utilisateurs', icon: <PeopleIcon />, path: '/users' }] : []),
+    ...(user?.role?.nom === 'admin' ? [{ text: 'Utilisateurs', icon: <PeopleIcon />, path: '/users' }] : []),
+    ...(user?.role?.nom === 'admin' ? [{ text: 'Catégories', icon: <PeopleIcon />, path: '/categories' }] : []),
   ];
 
   const handleDrawerToggle = () => {
@@ -78,10 +79,10 @@ export default function Layout() {
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
-              {user?.prenom} {user?.nom}
+              {user?.name}
             </Typography>
             <Chip 
-              label={user?.role} 
+              label={user?.role?.nom}
               size="small" 
               color="secondary"
               sx={{ display: { xs: 'none', sm: 'block' } }}
