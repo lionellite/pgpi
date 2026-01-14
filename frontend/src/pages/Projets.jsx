@@ -14,6 +14,7 @@ import {
   Card,
   CardContent,
   CardActions,
+  Pagination,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -25,21 +26,39 @@ export default function Projets() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    last_page: 1,
+    per_page: 15,
+    total: 0,
+  });
   const navigate = useNavigate();
   const { user } = useAuth();
 
   useEffect(() => {
     fetchProjets();
-  }, [search]);
+  }, [search, pagination.current_page]);
 
   const fetchProjets = async () => {
     try {
       setLoading(true);
-      const params = search ? { search } : {};
+      const params = {
+        ...(search ? { search } : {}),
+        page: pagination.current_page,
+        per_page: pagination.per_page,
+      };
       const response = await api.get('/projets', { params });
       // Gérer la pagination Laravel
       if (response.data.data) {
         setProjets(response.data.data);
+        if (response.data.meta) {
+          setPagination({
+            current_page: response.data.meta.current_page,
+            last_page: response.data.meta.last_page,
+            per_page: response.data.meta.per_page,
+            total: response.data.meta.total,
+          });
+        }
       } else if (Array.isArray(response.data)) {
         setProjets(response.data);
       } else {
@@ -50,6 +69,10 @@ export default function Projets() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePageChange = (event, value) => {
+    setPagination(prev => ({ ...prev, current_page: value }));
   };
 
   const getEtatColor = (etat) => {
@@ -63,7 +86,7 @@ export default function Projets() {
     return colors[etat] || 'default';
   };
 
-  const canCreate = ['admin', 'directeur', 'chef_projet'].includes(user?.role);
+  const canCreate = ['admin', 'directeur', 'chef'].includes(user?.role);
 
   if (loading) {
     return (
@@ -169,6 +192,18 @@ export default function Projets() {
             </Grid>
           ))}
         </Grid>
+      )}
+
+      {pagination.last_page > 1 && (
+        <Box display="flex" justifyContent="center" mt={4}>
+          <Pagination
+            count={pagination.last_page}
+            page={pagination.current_page}
+            onChange={handlePageChange}
+            color="primary"
+            size="large"
+          />
+        </Box>
       )}
     </Box>
   );

@@ -17,6 +17,9 @@ class PartenaireResource extends JsonResource
         return [
             'id' => $this->id,
             'nom' => $this->nom,
+            'point_contact' => $this->point_contact,
+            'localisation' => $this->localisation,
+            'logo' => $this->logo,
             'type' => $this->type,
             'email' => $this->email,
             'telephone' => $this->telephone,

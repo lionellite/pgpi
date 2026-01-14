@@ -12,7 +12,7 @@ class StoreProjetRequest extends FormRequest
     public function authorize(): bool
     {
         $user = $this->user();
-        return in_array($user->role, ['admin', 'directeur', 'chef_projet', 'partenaire']);
+        return in_array($user->role, ['admin', 'directeur', 'chef']);
     }
 
     /**
@@ -29,11 +29,15 @@ class StoreProjetRequest extends FormRequest
             'objectif_general' => 'required|string',
             'objectifs_specifiques' => 'nullable|string',
             'descriptions' => 'nullable|string',
-            'duree' => 'nullable|integer|min:1',
             'chef_projet_email' => 'nullable|email|exists:users,email',
-            'institution_initiatrice_email' => 'nullable|email|exists:users,email',
-            'institutions_emails' => 'nullable|array',
-            'institutions_emails.*' => 'email|exists:institutions,email',
+            'partenaires' => 'nullable|array',
+            'partenaires.*.partenaire_id' => 'required|exists:partenaires,id',
+            'partenaires.*.role' => 'nullable|string|max:255',
+            'personnel' => 'nullable|array',
+            'personnel.*.user_id' => 'required|exists:users,id',
+            'personnel.*.role' => 'required|string|max:255',
+            'personnel.*.date_debut' => 'nullable|date',
+            'personnel.*.date_fin' => 'nullable|date|after:personnel.*.date_debut',
             'images' => 'nullable|array',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
         ];

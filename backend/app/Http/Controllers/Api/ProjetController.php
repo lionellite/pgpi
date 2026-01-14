@@ -11,7 +11,6 @@ use App\Http\Resources\PartenaireResource;
 use App\Models\Projet;
 use App\Models\Partenaire;
 use App\Models\User;
-use App\Models\Institution;
 use App\Traits\Auditable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,25 +29,17 @@ class ProjetController extends Controller
         $query = Projet::with(['chefProjet', 'activites', 'personnel', 'partenaires']);
 
         // Filtres selon le rôle
-        if ($user->role === 'chef_projet') {
+        if ($user->isChef()) {
             $query->where('chef_projet_id', $user->id)
                   ->orWhereHas('personnel', function($q) use ($user) {
                       $q->where('user_id', $user->id);
                   });
-        } elseif ($user->role === 'personnel') {
+        } elseif ($user->isPersonnel()) {
             $query->whereHas('personnel', function($q) use ($user) {
                 $q->where('user_id', $user->id);
             });
-        } elseif ($user->role === 'partenaire') {
-            // Partenaires voient les projets où ils sont chef de projet ou partenaire
-            $query->where(function($q) use ($user) {
-                $q->where('chef_projet_id', $user->id)
-                  ->orWhereHas('partenaires', function($q2) use ($user) {
-                      $q2->where('partenaires.id', $user->id);
-                  });
-            });
-        } elseif ($user->role === 'consultation') {
-            // Lecture seule pour consultation
+        } elseif ($user->isApprenant()) {
+            // Lecture seule pour apprenants
         }
 
         // Filtres
@@ -88,18 +79,15 @@ class ProjetController extends Controller
             $data['chef_projet_id'] = $data['chef_projet_id'] ?? $user->id;
         }
 
-        // Convertir email institution initiatrice (utilisateur partenaire) en ID
-        if (isset($data['institution_initiatrice_email'])) {
-            $institutionUser = User::where('email', $data['institution_initiatrice_email'])
-                ->where('role', 'partenaire')
-                ->first();
-            if ($institutionUser) {
-                $data['institution_initiatrice_user_id'] = $institutionUser->id;
-            }
-            unset($data['institution_initiatrice_email']);
-        }
-
         $data['etat'] = 'planifie';
+
+        // Calculer la durée automatiquement
+        if (isset($data['date_debut']) && isset($data['date_fin'])) {
+            $dateDebut = new \DateTime($data['date_debut']);
+            $dateFin = new \DateTime($data['date_fin']);
+            $diff = $dateDebut->diff($dateFin);
+            $data['duree'] = $diff->days;
+        }
 
         // Gestion des images
         if ($request->hasFile('images')) {
@@ -111,19 +99,49 @@ class ProjetController extends Controller
             $data['images'] = $images;
         }
 
-        // Gérer les institutions liées
-        $institutionsEmails = $data['institutions_emails'] ?? [];
-        unset($data['institutions_emails']);
+        // Gérer les partenaires positionnés
+        $partenairesData = $data['partenaires'] ?? [];
+        unset($data['partenaires']);
+
+        // Gérer le personnel
+        $personnelData = $data['personnel'] ?? [];
+        unset($data['personnel']);
 
         $projet = Projet::create($data);
 
-        // Attacher les institutions
-        if (!empty($institutionsEmails)) {
-            $institutionIds = Institution::whereIn('email', $institutionsEmails)->pluck('id');
-            $projet->institutions()->sync($institutionIds);
+        // Attacher les partenaires avec leurs rôles
+        if (!empty($partenairesData)) {
+            $partenairesSync = [];
+            foreach ($partenairesData as $partenaireItem) {
+                if (isset($partenaireItem['partenaire_id'])) {
+                    $partenairesSync[$partenaireItem['partenaire_id']] = [
+                        'role' => $partenaireItem['role'] ?? null,
+                    ];
+                }
+            }
+            if (!empty($partenairesSync)) {
+                $projet->partenaires()->sync($partenairesSync);
+            }
         }
 
-        $projet->load(['chefProjet', 'institutionInitiatrice', 'institutions', 'activites', 'personnel', 'partenaires']);
+        // Attacher le personnel avec leurs rôles
+        if (!empty($personnelData)) {
+            $personnelSync = [];
+            foreach ($personnelData as $personnelItem) {
+                if (isset($personnelItem['user_id'])) {
+                    $personnelSync[$personnelItem['user_id']] = [
+                        'role' => $personnelItem['role'] ?? null,
+                        'date_debut' => $personnelItem['date_debut'] ?? null,
+                        'date_fin' => $personnelItem['date_fin'] ?? null,
+                    ];
+                }
+            }
+            if (!empty($personnelSync)) {
+                $projet->personnel()->sync($personnelSync);
+            }
+        }
+
+        $projet->load(['chefProjet', 'activites', 'personnel', 'partenaires']);
 
         return response()->json([
             'message' => 'Projet créé avec succès',
@@ -136,7 +154,7 @@ class ProjetController extends Controller
      */
     public function show(Projet $projet): JsonResponse
     {
-        $projet->load(['chefProjet', 'institutionInitiatrice', 'institutions', 'activites', 'medias', 'documents', 'personnel', 'partenaires']);
+        $projet->load(['chefProjet', 'activites', 'medias', 'documents', 'personnel', 'partenaires']);
         
         return response()->json([
             'data' => new ProjetResource($projet)
@@ -157,15 +175,12 @@ class ProjetController extends Controller
             unset($data['chef_projet_email']);
         }
 
-        // Convertir email institution initiatrice (utilisateur partenaire) en ID
-        if (isset($data['institution_initiatrice_email'])) {
-            $institutionUser = User::where('email', $data['institution_initiatrice_email'])
-                ->where('role', 'partenaire')
-                ->first();
-            if ($institutionUser) {
-                $data['institution_initiatrice_user_id'] = $institutionUser->id;
-            }
-            unset($data['institution_initiatrice_email']);
+        // Calculer la durée automatiquement si les dates changent
+        if (isset($data['date_debut']) || isset($data['date_fin'])) {
+            $dateDebut = new \DateTime($data['date_debut'] ?? $projet->date_debut);
+            $dateFin = new \DateTime($data['date_fin'] ?? $projet->date_fin);
+            $diff = $dateDebut->diff($dateFin);
+            $data['duree'] = $diff->days;
         }
 
         // Gestion des images
@@ -178,16 +193,40 @@ class ProjetController extends Controller
             $data['images'] = $images;
         }
 
-        // Gérer les institutions liées
-        if (isset($data['institutions_emails'])) {
-            $institutionsEmails = $data['institutions_emails'];
-            unset($data['institutions_emails']);
-            $institutionIds = Institution::whereIn('email', $institutionsEmails)->pluck('id');
-            $projet->institutions()->sync($institutionIds);
+        // Gérer les partenaires positionnés
+        if (isset($data['partenaires'])) {
+            $partenairesData = $data['partenaires'];
+            unset($data['partenaires']);
+            $partenairesSync = [];
+            foreach ($partenairesData as $partenaireItem) {
+                if (isset($partenaireItem['partenaire_id'])) {
+                    $partenairesSync[$partenaireItem['partenaire_id']] = [
+                        'role' => $partenaireItem['role'] ?? null,
+                    ];
+                }
+            }
+            $projet->partenaires()->sync($partenairesSync);
+        }
+
+        // Gérer le personnel
+        if (isset($data['personnel'])) {
+            $personnelData = $data['personnel'];
+            unset($data['personnel']);
+            $personnelSync = [];
+            foreach ($personnelData as $personnelItem) {
+                if (isset($personnelItem['user_id'])) {
+                    $personnelSync[$personnelItem['user_id']] = [
+                        'role' => $personnelItem['role'] ?? null,
+                        'date_debut' => $personnelItem['date_debut'] ?? null,
+                        'date_fin' => $personnelItem['date_fin'] ?? null,
+                    ];
+                }
+            }
+            $projet->personnel()->sync($personnelSync);
         }
 
         $projet->update($data);
-        $projet->load(['chefProjet', 'institutionInitiatrice', 'institutions', 'activites', 'personnel', 'partenaires']);
+        $projet->load(['chefProjet', 'activites', 'personnel', 'partenaires']);
 
         return response()->json([
             'message' => 'Projet mis à jour avec succès',
@@ -390,7 +429,6 @@ class ProjetController extends Controller
     {
         return $user->isAdmin() 
             || $user->isDirecteur() 
-            || $projet->chef_projet_id === $user->id
-            || ($user->role === 'partenaire' && $projet->chef_projet_id === $user->id);
+            || $projet->chef_projet_id === $user->id;
     }
 }

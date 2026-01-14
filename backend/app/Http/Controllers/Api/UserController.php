@@ -62,7 +62,7 @@ class UserController extends Controller
             'prenom' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8',
-            'role' => 'required|in:admin,directeur,chef_projet,personnel,partenaire,consultation',
+            'role' => 'required|in:admin,directeur,chef,personnel,apprenant',
             'departement' => 'nullable|string|max:255',
         ]);
 
@@ -113,7 +113,7 @@ class UserController extends Controller
             'prenom' => 'sometimes|required|string|max:255',
             'email' => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($user->id)],
             'password' => 'nullable|string|min:8',
-            'role' => ['sometimes', 'required', 'in:admin,directeur,chef_projet,personnel,partenaire,consultation'],
+            'role' => ['sometimes', 'required', 'in:admin,directeur,chef,personnel,apprenant'],
             'departement' => 'nullable|string|max:255',
         ]);
 

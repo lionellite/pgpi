@@ -9,6 +9,7 @@ use App\Models\Partenaire;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Storage;
 
 class PartenaireController extends Controller
 {
@@ -39,7 +40,15 @@ class PartenaireController extends Controller
      */
     public function store(StorePartenaireRequest $request): JsonResponse
     {
-        $partenaire = Partenaire::create($request->validated());
+        $data = $request->validated();
+        
+        // Gestion du logo
+        if ($request->hasFile('logo')) {
+            $path = $request->file('logo')->store('partenaires/logos', 'public');
+            $data['logo'] = Storage::url($path);
+        }
+        
+        $partenaire = Partenaire::create($data);
         $partenaire->load('projets');
 
         return response()->json([
@@ -67,11 +76,24 @@ class PartenaireController extends Controller
     {
         $user = $request->user();
         
-        if (!in_array($user->role, ['admin', 'directeur', 'chef_projet'])) {
+        if (!in_array($user->role, ['admin', 'directeur', 'chef'])) {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
-        $partenaire->update($request->validated());
+        $data = $request->validated();
+        
+        // Gestion du logo
+        if ($request->hasFile('logo')) {
+            // Supprimer l'ancien logo si existe
+            if ($partenaire->logo) {
+                $oldPath = str_replace('/storage/', '', $partenaire->logo);
+                Storage::disk('public')->delete($oldPath);
+            }
+            $path = $request->file('logo')->store('partenaires/logos', 'public');
+            $data['logo'] = Storage::url($path);
+        }
+
+        $partenaire->update($data);
         $partenaire->load('projets');
 
         return response()->json([

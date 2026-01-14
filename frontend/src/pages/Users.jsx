@@ -134,10 +134,9 @@ export default function Users() {
     const colors = {
       admin: 'error',
       directeur: 'warning',
-      chef_projet: 'primary',
-      membre: 'default',
-      partenaire: 'info',
-      consultation: 'success',
+      chef: 'primary',
+      personnel: 'default',
+      apprenant: 'success',
     };
     return colors[role] || 'default';
   };
@@ -288,10 +287,9 @@ export default function Users() {
                 >
                   <MenuItem value="admin">Admin</MenuItem>
                   <MenuItem value="directeur">Directeur</MenuItem>
-                  <MenuItem value="chef_projet">Chef de projet</MenuItem>
+                  <MenuItem value="chef">Chef</MenuItem>
                   <MenuItem value="personnel">Personnel</MenuItem>
-                  <MenuItem value="partenaire">Partenaire</MenuItem>
-                  <MenuItem value="consultation">Consultation</MenuItem>
+                  <MenuItem value="apprenant">Apprenant</MenuItem>
                 </Select>
               </FormControl>
               <TextField

@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class User extends Authenticatable
 {
@@ -19,13 +21,28 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'nom',
-        'prenom',
+        'role_id',
+        'name',
         'email',
         'password',
-        'role',
-        'departement',
+        'status',
+        'photo_url',
+        'sexe',
+        'nom',
+        'prenoms',
+        'date_inscription',
+        'last_login_at',
+        'module_id',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'password' => 'hashed',
+            'date_inscription' => 'datetime',
+            'last_login_at' => 'datetime',
+        ];
+    }
 
     /**
      * The attributes that should be hidden for serialization.
@@ -34,23 +51,19 @@ class User extends Authenticatable
      */
     protected $hidden = [
         'password',
-        'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
+    // Relations
+    public function role(): BelongsTo
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->belongsTo(Role::class);
     }
 
-    // Relations
+    public function module(): BelongsTo
+    {
+        return $this->belongsTo(Module::class);
+    }
+
     public function projetsDiriges()
     {
         return $this->hasMany(Projet::class, 'chef_projet_id');
@@ -68,19 +81,40 @@ class User extends Authenticatable
         return $this->hasMany(DocumentProjet::class, 'derniere_mise_a_jour_par');
     }
 
-    // Helpers pour les rôles
+    public function servicesGerants()
+    {
+        return $this->hasMany(ServiceGerant::class, 'user_id');
+    }
+
+    // Helpers pour les rôles - Utilisation du role_id et du nom du rôle
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return $this->role && strtolower($this->role->nom) === 'admin';
     }
 
     public function isDirecteur(): bool
     {
-        return $this->role === 'directeur';
+        return $this->role && strtolower($this->role->nom) === 'directeur';
     }
 
-    public function isChefProjet(): bool
+    public function isChef(): bool
     {
-        return $this->role === 'chef_projet';
+        return $this->role && (strtolower($this->role->nom) === 'chef' || strtolower($this->role->nom) === 'chef de projet');
+    }
+
+    public function isApprenant(): bool
+    {
+        return $this->role && strtolower($this->role->nom) === 'apprenant';
+    }
+
+    public function isPersonnel(): bool
+    {
+        return $this->role && strtolower($this->role->nom) === 'personnel';
+    }
+
+    // Accessor pour compatibilité avec l'ancien code
+    public function getRoleAttribute()
+    {
+        return $this->role ? $this->role->nom : null;
     }
 }

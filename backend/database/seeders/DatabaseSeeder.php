@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Models\Role;
+use App\Models\Module;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -15,41 +17,70 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Créer des utilisateurs de test avec différents rôles
+        // D'abord, créer les modules et rôles
+        $this->call(ModuleRoleSeeder::class);
+
+        // Récupérer les rôles
+        $adminRole = Role::where('nom', 'admin')->first();
+        $directeurRole = Role::where('nom', 'directeur')->first();
+        $chefRole = Role::where('nom', 'chef')->first();
+        $personnelRole = Role::where('nom', 'personnel')->first();
+        $apprenantRole = Role::where('nom', 'apprenant')->first();
+
+        // Créer des utilisateurs de test avec la nouvelle structure
         User::create([
-            'nom' => 'Admin',
-            'prenom' => 'Système',
+            'role_id' => $adminRole->id,
+            'name' => 'Administrateur Système',
             'email' => 'admin@insti.bj',
             'password' => bcrypt('password'),
-            'role' => 'admin',
-            'departement' => 'Informatique',
+            'status' => 'actif',
+            'nom' => 'Admin',
+            'prenoms' => 'Système',
+            'module_id' => $adminRole->module_id,
         ]);
 
         User::create([
-            'nom' => 'Directeur',
-            'prenom' => 'Général',
+            'role_id' => $directeurRole->id,
+            'name' => 'Directeur Général',
             'email' => 'directeur@insti.bj',
             'password' => bcrypt('password'),
-            'role' => 'directeur',
-            'departement' => 'Direction',
+            'status' => 'actif',
+            'nom' => 'Directeur',
+            'prenoms' => 'Général',
+            'module_id' => $directeurRole->module_id,
         ]);
 
         User::create([
-            'nom' => 'Doe',
-            'prenom' => 'John',
-            'email' => 'chef.projet@insti.bj',
+            'role_id' => $chefRole->id,
+            'name' => 'John Doe',
+            'email' => 'chef@insti.bj',
             'password' => bcrypt('password'),
-            'role' => 'chef_projet',
-            'departement' => 'Projets',
+            'status' => 'actif',
+            'nom' => 'Doe',
+            'prenoms' => 'John',
+            'module_id' => $chefRole->module_id,
         ]);
 
         User::create([
-            'nom' => 'Smith',
-            'prenom' => 'Jane',
+            'role_id' => $personnelRole->id,
+            'name' => 'Jane Smith',
             'email' => 'personnel@insti.bj',
             'password' => bcrypt('password'),
-            'role' => 'personnel',
-            'departement' => 'Enseignement',
+            'status' => 'actif',
+            'nom' => 'Smith',
+            'prenoms' => 'Jane',
+            'module_id' => $personnelRole->module_id,
+        ]);
+
+        User::create([
+            'role_id' => $apprenantRole->id,
+            'name' => 'Test Apprenant',
+            'email' => 'apprenant@insti.bj',
+            'password' => bcrypt('password'),
+            'status' => 'actif',
+            'nom' => 'Apprenant',
+            'prenoms' => 'Test',
+            'module_id' => $apprenantRole->module_id,
         ]);
     }
 }

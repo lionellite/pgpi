@@ -19,23 +19,37 @@ class AuthController extends Controller
     public function register(Request $request): JsonResponse
     {
         $request->validate([
-            'nom' => 'required|string|max:255',
-            'prenom' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
+            'nom' => 'nullable|string|max:255',
+            'prenoms' => 'nullable|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
-            'role' => 'nullable|in:admin,directeur,chef_projet,personnel,partenaire,consultation',
-            'departement' => 'nullable|string|max:255',
+            'role_id' => 'nullable|exists:roles,id',
+            'module_id' => 'nullable|exists:modules,id',
+            'status' => 'nullable|string|max:255',
+            'sexe' => 'nullable|string|max:255',
         ]);
+
+        // Si role_id n'est pas fourni, utiliser le rôle "personnel" par défaut
+        $roleId = $request->role_id;
+        if (!$roleId) {
+            $personnelRole = \App\Models\Role::where('nom', 'personnel')->first();
+            $roleId = $personnelRole ? $personnelRole->id : null;
+        }
 
         $user = User::create([
+            'role_id' => $roleId,
+            'name' => $request->name,
             'nom' => $request->nom,
-            'prenom' => $request->prenom,
+            'prenoms' => $request->prenoms,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => $request->role ?? 'personnel',
-            'departement' => $request->departement,
+            'status' => $request->status ?? 'actif',
+            'sexe' => $request->sexe,
+            'module_id' => $request->module_id,
         ]);
 
+        $user->load('role', 'module');
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -55,13 +69,16 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::with('role', 'module')->where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['Les identifiants fournis sont incorrects.'],
             ]);
         }
+
+        // Mettre à jour last_login_at
+        $user->update(['last_login_at' => now()]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -87,8 +104,9 @@ class AuthController extends Controller
      */
     public function user(Request $request): JsonResponse
     {
+        $user = $request->user()->load('role', 'module');
         return response()->json([
-            'data' => new UserResource($request->user())
+            'data' => new UserResource($user)
         ]);
     }
 

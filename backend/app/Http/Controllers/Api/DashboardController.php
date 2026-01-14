@@ -22,12 +22,12 @@ class DashboardController extends Controller
         $query = Projet::query();
         
         // Filtres selon le rôle
-        if ($user->role === 'chef_projet') {
+        if ($user->isChef()) {
             $query->where('chef_projet_id', $user->id)
                   ->orWhereHas('personnel', function($q) use ($user) {
                       $q->where('user_id', $user->id);
                   });
-        } elseif ($user->role === 'personnel') {
+        } elseif ($user->isPersonnel()) {
             $query->whereHas('personnel', function($q) use ($user) {
                 $q->where('user_id', $user->id);
             });
@@ -48,12 +48,12 @@ class DashboardController extends Controller
 
         // Activités à venir (7 prochains jours)
         $activitesAvenir = ActiviteProjet::whereHas('projet', function($q) use ($user, $query) {
-            if ($user->role === 'chef_projet') {
+            if ($user->isChef()) {
                 $q->where('chef_projet_id', $user->id)
                   ->orWhereHas('personnel', function($q2) use ($user) {
                       $q2->where('user_id', $user->id);
                   });
-            } elseif ($user->role === 'personnel') {
+            } elseif ($user->isPersonnel()) {
                 $q->whereHas('personnel', function($q2) use ($user) {
                     $q2->where('user_id', $user->id);
                 });

@@ -45,10 +45,6 @@ export default function ProjetDetail() {
   // Filtres et tri pour médias et documents
   const [mediaFilters, setMediaFilters] = useState({ type: '', search: '', sort_by: 'created_at', sort_order: 'desc' });
   const [documentFilters, setDocumentFilters] = useState({ type: '', etat: '', search: '', sort_by: 'created_at', sort_order: 'desc' });
-  
-  // Filtres et tri pour médias et documents
-  //const [mediaFilters, setMediaFilters] = useState({ type: '', search: '', sort_by: 'created_at', sort_order: 'desc' });
-  //const [documentFilters, setDocumentFilters] = useState({ type: '', etat: '', search: '', sort_by: 'created_at', sort_order: 'desc' });
 
   // Forms state
   const [activiteForm, setActiviteForm] = useState({
@@ -73,11 +69,28 @@ export default function ProjetDetail() {
     fichier: null,
   });
   const [users, setUsers] = useState([]);
+  const [partenaires, setPartenaires] = useState([]);
   const [personnelForm, setPersonnelForm] = useState({
     user_email: '',
     role: '',
     date_debut: '',
     date_fin: '',
+  });
+  const [partenaireAttachForm, setPartenaireAttachForm] = useState({
+    partenaire_id: null,
+    role: '',
+  });
+  const [partenaireCreateForm, setPartenaireCreateForm] = useState({
+    nom: '',
+    point_contact: '',
+    localisation: '',
+    email: '',
+    telephone: '',
+    adresse: '',
+    type: '',
+    description: '',
+    logo: null,
+    role: '',
   });
 
   const [formLoading, setFormLoading] = useState(false);
@@ -92,6 +105,7 @@ export default function ProjetDetail() {
     if (id && id !== 'new' && id !== 'edit') {
       fetchProjet();
       fetchUsers();
+      fetchPartenaires();
     } else {
       setLoading(false);
     }
@@ -103,6 +117,15 @@ export default function ProjetDetail() {
       setUsers(response.data.data || response.data);
     } catch (err) {
       console.error('Erreur chargement utilisateurs:', err);
+    }
+  };
+
+  const fetchPartenaires = async () => {
+    try {
+      const response = await api.get('/partenaires', { params: { per_page: 1000 } });
+      setPartenaires(response.data.data || response.data);
+    } catch (err) {
+      console.error('Erreur chargement partenaires:', err);
     }
   };
 
@@ -291,6 +314,78 @@ export default function ProjetDetail() {
     }
   };
 
+  const handleAddPartenaire = async (e) => {
+    e.preventDefault();
+    setFormLoading(true);
+    setActionMessage(null);
+    try {
+      await api.post(`/projets/${id}/partenaires`, {
+        partenaire_id: partenaireAttachForm.partenaire_id,
+        role: partenaireAttachForm.role,
+      });
+      await fetchProjet();
+      setPartenaireAttachForm({
+        partenaire_id: null,
+        role: '',
+      });
+      setActionMessage('Partenaire ajouté avec succès');
+    } catch (err) {
+      setError(handleFormError(err, "Erreur lors de l'ajout du partenaire"));
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleCreatePartenaire = async (e) => {
+    e.preventDefault();
+    setFormLoading(true);
+    setActionMessage(null);
+    try {
+      const formData = new FormData();
+      Object.keys(partenaireCreateForm).forEach(key => {
+        if (key !== 'logo' && key !== 'role' && partenaireCreateForm[key]) {
+          formData.append(key, partenaireCreateForm[key]);
+        }
+      });
+      if (partenaireCreateForm.logo) {
+        formData.append('logo', partenaireCreateForm.logo);
+      }
+
+      const response = await api.post('/partenaires', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      
+      const newPartenaire = response.data.data;
+      
+      // Ajouter le partenaire au projet avec le rôle
+      await api.post(`/projets/${id}/partenaires`, {
+        partenaire_id: newPartenaire.id,
+        role: partenaireCreateForm.role,
+      });
+      
+      await fetchProjet();
+      await fetchPartenaires();
+      
+      setPartenaireCreateForm({
+        nom: '',
+        point_contact: '',
+        localisation: '',
+        email: '',
+        telephone: '',
+        adresse: '',
+        type: '',
+        description: '',
+        logo: null,
+        role: '',
+      });
+      setActionMessage('Partenaire créé et ajouté au projet avec succès');
+    } catch (err) {
+      setError(handleFormError(err, "Erreur lors de la création du partenaire"));
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
 
   if (loading) {
     return (
@@ -363,19 +458,7 @@ export default function ProjetDetail() {
               <Typography><strong>Date fin:</strong> {new Date(projet.date_fin).toLocaleDateString()}</Typography>
               <Typography><strong>Durée:</strong> {projet.duree} jours</Typography>
               <Typography><strong>Chef de projet:</strong> {projet.chef_projet?.prenom} {projet.chef_projet?.nom} ({projet.chef_projet?.email})</Typography>
-              {projet.institution_initiatrice && (
-                <Typography><strong>Institution initiatrice:</strong> {projet.institution_initiatrice.prenom} {projet.institution_initiatrice.nom} ({projet.institution_initiatrice.email})</Typography>
-              )}
-              {projet.institutions && projet.institutions.length > 0 && (
-                <Typography component="div" sx={{ mt: 1 }}>
-                  <strong>Institutions liées:</strong>
-                  <Box component="ul" sx={{ mt: 0.5, pl: 2 }}>
-                    {projet.institutions.map((inst) => (
-                      <li key={inst.id}>{inst.nom} ({inst.email})</li>
-                    ))}
-                  </Box>
-                </Typography>
-              )}
+              <Typography><strong>État:</strong> {projet.etat}</Typography>
             </Paper>
           </Grid>
           <Grid item xs={12} md={6}>
@@ -383,7 +466,20 @@ export default function ProjetDetail() {
               <Typography variant="h6" gutterBottom>
                 Objectifs
               </Typography>
-              <Typography>{projet.objectif_general}</Typography>
+              <Typography variant="body1" gutterBottom><strong>Objectif général:</strong></Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>{projet.objectif_general}</Typography>
+              {projet.objectifs_specifiques && (
+                <>
+                  <Typography variant="body1" gutterBottom><strong>Objectifs spécifiques:</strong></Typography>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>{projet.objectifs_specifiques}</Typography>
+                </>
+              )}
+              {projet.descriptions && (
+                <>
+                  <Typography variant="body1" gutterBottom sx={{ mt: 2 }}><strong>Description:</strong></Typography>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>{projet.descriptions}</Typography>
+                </>
+              )}
             </Paper>
           </Grid>
         </Grid>
@@ -581,7 +677,7 @@ export default function ProjetDetail() {
               </FormControl>
             </Box>
           </Box>
-          {(canEdit || user?.role === 'partenaire') && (
+          {canEdit && (
             <Box component="form" onSubmit={handleDocumentSubmit} sx={{ mb: 2, display: 'grid', gap: 2 }}>
               <TextField
                 label="Titre"
@@ -726,7 +822,7 @@ export default function ProjetDetail() {
               </FormControl>
             </Box>
           </Box>
-          {(canEdit || user?.role === 'partenaire') && (
+          {canEdit && (
             <Box component="form" onSubmit={handleMediaSubmit} sx={{ mb: 2, display: 'grid', gap: 2 }}>
               <TextField
                 label="Titre"
@@ -906,21 +1002,136 @@ export default function ProjetDetail() {
           <Typography variant="h6" gutterBottom>
             Partenaires
           </Typography>
+          
+          {canEdit && (
+            <>
+              <Box sx={{ mb: 3, p: 2, border: '1px solid #ddd', borderRadius: 1 }}>
+                <Typography variant="subtitle1" gutterBottom>
+                  Ajouter un partenaire existant
+                </Typography>
+                <Box component="form" onSubmit={handleAddPartenaire} sx={{ display: 'grid', gap: 2 }}>
+                  <Autocomplete
+                    options={partenaires}
+                    getOptionLabel={(option) => `${option.nom} (${option.email || 'N/A'})`}
+                    value={partenaires.find(p => p.id === partenaireAttachForm.partenaire_id) || null}
+                    onChange={(e, newValue) => {
+                      setPartenaireAttachForm({ ...partenaireAttachForm, partenaire_id: newValue?.id || null });
+                    }}
+                    renderInput={(params) => (
+                      <TextField {...params} label="Partenaire" required />
+                    )}
+                  />
+                  <TextField
+                    label="Rôle"
+                    value={partenaireAttachForm.role}
+                    onChange={(e) => setPartenaireAttachForm({ ...partenaireAttachForm, role: e.target.value })}
+                  />
+                  <Button type="submit" variant="contained" disabled={formLoading}>
+                    {formLoading ? 'Ajout...' : 'Ajouter au projet'}
+                  </Button>
+                </Box>
+              </Box>
+
+              <Box sx={{ mb: 3, p: 2, border: '1px solid #ddd', borderRadius: 1 }}>
+                <Typography variant="subtitle1" gutterBottom>
+                  Créer un nouveau partenaire
+                </Typography>
+                <Box component="form" onSubmit={handleCreatePartenaire} sx={{ display: 'grid', gap: 2 }}>
+                  <TextField
+                    label="Nom"
+                    value={partenaireCreateForm.nom}
+                    onChange={(e) => setPartenaireCreateForm({ ...partenaireCreateForm, nom: e.target.value })}
+                    required
+                  />
+                  <TextField
+                    label="Point de contact"
+                    value={partenaireCreateForm.point_contact}
+                    onChange={(e) => setPartenaireCreateForm({ ...partenaireCreateForm, point_contact: e.target.value })}
+                  />
+                  <TextField
+                    label="Localisation"
+                    value={partenaireCreateForm.localisation}
+                    onChange={(e) => setPartenaireCreateForm({ ...partenaireCreateForm, localisation: e.target.value })}
+                  />
+                  <TextField
+                    label="Email"
+                    type="email"
+                    value={partenaireCreateForm.email}
+                    onChange={(e) => setPartenaireCreateForm({ ...partenaireCreateForm, email: e.target.value })}
+                  />
+                  <TextField
+                    label="Téléphone"
+                    value={partenaireCreateForm.telephone}
+                    onChange={(e) => setPartenaireCreateForm({ ...partenaireCreateForm, telephone: e.target.value })}
+                  />
+                  <TextField
+                    label="Adresse"
+                    multiline
+                    rows={2}
+                    value={partenaireCreateForm.adresse}
+                    onChange={(e) => setPartenaireCreateForm({ ...partenaireCreateForm, adresse: e.target.value })}
+                  />
+                  <TextField
+                    label="Type"
+                    value={partenaireCreateForm.type}
+                    onChange={(e) => setPartenaireCreateForm({ ...partenaireCreateForm, type: e.target.value })}
+                  />
+                  <TextField
+                    label="Description"
+                    multiline
+                    rows={3}
+                    value={partenaireCreateForm.description}
+                    onChange={(e) => setPartenaireCreateForm({ ...partenaireCreateForm, description: e.target.value })}
+                  />
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setPartenaireCreateForm({ ...partenaireCreateForm, logo: e.target.files?.[0] || null })}
+                  />
+                  <TextField
+                    label="Rôle sur le projet"
+                    value={partenaireCreateForm.role}
+                    onChange={(e) => setPartenaireCreateForm({ ...partenaireCreateForm, role: e.target.value })}
+                  />
+                  <Button type="submit" variant="contained" disabled={formLoading}>
+                    {formLoading ? 'Création...' : 'Créer et ajouter au projet'}
+                  </Button>
+                </Box>
+              </Box>
+              <Divider sx={{ my: 3 }} />
+            </>
+          )}
+
           {projet.partenaires && projet.partenaires.length > 0 ? (
             <Grid container spacing={2}>
               {projet.partenaires.map((partenaire) => (
                 <Grid item xs={12} sm={6} md={4} key={partenaire.id}>
                   <Card>
                     <CardContent>
+                      {partenaire.logo && (
+                        <Box sx={{ mb: 2, textAlign: 'center' }}>
+                          <img src={partenaire.logo} alt={partenaire.nom} style={{ maxWidth: '100%', maxHeight: 100 }} />
+                        </Box>
+                      )}
                       <Typography variant="h6" gutterBottom>
                         {partenaire.nom}
                       </Typography>
                       {partenaire.pivot?.role && (
                         <Chip label={partenaire.pivot.role} size="small" sx={{ mb: 1 }} />
                       )}
+                      {partenaire.point_contact && (
+                        <Typography variant="body2" color="text.secondary">
+                          Contact: {partenaire.point_contact}
+                        </Typography>
+                      )}
                       {partenaire.email && (
                         <Typography variant="body2" color="text.secondary">
                           {partenaire.email}
+                        </Typography>
+                      )}
+                      {partenaire.localisation && (
+                        <Typography variant="body2" color="text.secondary">
+                          {partenaire.localisation}
                         </Typography>
                       )}
                       {partenaire.type && (

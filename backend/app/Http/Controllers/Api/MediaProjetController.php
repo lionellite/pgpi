@@ -199,11 +199,6 @@ class MediaProjetController extends Controller
             return true;
         }
         
-        // Partenaire chef de projet peut modifier
-        if ($user->role === 'partenaire' && $projet->chef_projet_id === $user->id) {
-            return true;
-        }
-        
         return false;
     }
 
@@ -215,16 +210,6 @@ class MediaProjetController extends Controller
         // Si l'utilisateur peut modifier, il peut ajouter
         if ($this->canModifyProjet($user, $projet)) {
             return true;
-        }
-        
-        // Partenaires associés peuvent déposer des médias (accès limité)
-        if ($user->role === 'partenaire') {
-            // Vérifier si c'est un partenaire associé au projet (via table pivot)
-            // L'utilisateur partenaire doit avoir le même email qu'un partenaire associé
-            $partenaire = Partenaire::where('email', $user->email)->first();
-            if ($partenaire) {
-                return $projet->partenaires()->where('partenaires.id', $partenaire->id)->exists();
-            }
         }
         
         return false;

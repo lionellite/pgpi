@@ -20,7 +20,6 @@ class Projet extends Model
         'duree',
         'etat',
         'chef_projet_id',
-        'institution_initiatrice_user_id',
     ];
 
     protected function casts(): array
@@ -67,17 +66,6 @@ class Projet extends Model
             ->withTimestamps();
     }
 
-    public function institutionInitiatrice(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'institution_initiatrice_user_id');
-    }
-
-    public function institutions(): BelongsToMany
-    {
-        return $this->belongsToMany(Institution::class, 'institution_projet', 'projet_id', 'institution_id')
-            ->withPivot('role')
-            ->withTimestamps();
-    }
 
     // Helpers
     public function getAvancementAttribute(): int

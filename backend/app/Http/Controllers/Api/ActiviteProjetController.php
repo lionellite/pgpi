@@ -147,6 +147,6 @@ class ActiviteProjetController extends Controller
             || $user->isDirecteur() 
             || $projet->chef_projet_id === $user->id
             || $projet->personnel()->where('user_id', $user->id)->exists()
-            || ($user->role === 'partenaire' && $projet->chef_projet_id === $user->id);
+            ;
     }
 }

@@ -12,7 +12,7 @@ class StorePartenaireRequest extends FormRequest
     public function authorize(): bool
     {
         $user = $this->user();
-        return in_array($user->role, ['admin', 'directeur', 'chef_projet']);
+        return in_array($user->role, ['admin', 'directeur', 'chef']);
     }
 
     /**
@@ -24,6 +24,9 @@ class StorePartenaireRequest extends FormRequest
     {
         return [
             'nom' => 'required|string|max:255',
+            'point_contact' => 'nullable|string|max:255',
+            'localisation' => 'nullable|string|max:255',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'type' => 'nullable|string|max:255',
             'email' => 'nullable|email|max:255',
             'telephone' => 'nullable|string|max:255',

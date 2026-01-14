@@ -22,7 +22,7 @@ class AuditLogController extends Controller
         $query = AuditLog::with('user');
         
         // Filtres selon le rôle
-        if ($user->role === 'chef_projet') {
+        if ($user->isChef()) {
             // Chef de projet voit les logs de ses projets
             $projetIds = \App\Models\Projet::where('chef_projet_id', $user->id)->pluck('id');
             $query->where(function($q) use ($projetIds) {
@@ -49,11 +49,6 @@ class AuditLogController extends Controller
                        });
                 });
             });
-        } elseif ($user->role === 'partenaire') {
-            // Partenaire voit les logs des projets où il est institution initiatrice
-            $projetIds = \App\Models\Projet::where('institution_initiatrice_user_id', $user->id)->pluck('id');
-            $query->where('model_type', 'App\Models\Projet')
-                  ->whereIn('model_id', $projetIds);
         }
         // Admin et directeur voient tout
         

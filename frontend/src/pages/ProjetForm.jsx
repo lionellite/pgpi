@@ -15,7 +15,10 @@ import {
   MenuItem,
   Autocomplete,
   Chip,
+  IconButton,
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -29,7 +32,6 @@ export default function ProjetForm() {
   const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState(null);
   const [users, setUsers] = useState([]);
-  const [institutions, setInstitutions] = useState([]);
   const [partenaires, setPartenaires] = useState([]);
   
   const [formData, setFormData] = useState({
@@ -39,16 +41,14 @@ export default function ProjetForm() {
     objectif_general: '',
     objectifs_specifiques: '',
     descriptions: '',
-    duree: '',
     chef_projet_email: user?.email || '',
-    institution_initiatrice_email: '',
-    institutions_emails: [],
+    partenaires: [],
+    personnel: [],
     etat: 'planifie',
   });
 
   useEffect(() => {
     fetchUsers();
-    fetchInstitutions();
     fetchPartenaires();
     if (isEdit) {
       fetchProjet();
@@ -64,18 +64,9 @@ export default function ProjetForm() {
     }
   };
 
-  const fetchInstitutions = async () => {
-    try {
-      const response = await api.get('/institutions', { params: { per_page: 1000 } });
-      setInstitutions(response.data.data || response.data);
-    } catch (err) {
-      console.error('Erreur chargement institutions:', err);
-    }
-  };
-
   const fetchPartenaires = async () => {
     try {
-      const response = await api.get('/users', { params: { per_page: 1000, role: 'partenaire' } });
+      const response = await api.get('/partenaires', { params: { per_page: 1000 } });
       setPartenaires(response.data.data || response.data);
     } catch (err) {
       console.error('Erreur chargement partenaires:', err);
@@ -95,10 +86,17 @@ export default function ProjetForm() {
         objectif_general: projet.objectif_general || '',
         objectifs_specifiques: projet.objectifs_specifiques || '',
         descriptions: projet.descriptions || '',
-        duree: projet.duree || '',
         chef_projet_email: projet.chef_projet?.email || user?.email || '',
-        institution_initiatrice_email: projet.institution_initiatrice?.email || '',
-        institutions_emails: projet.institutions?.map(i => i.email) || [],
+        partenaires: projet.partenaires?.map(p => ({
+          partenaire_id: p.id,
+          role: p.pivot?.role || '',
+        })) || [],
+        personnel: projet.personnel?.map(p => ({
+          user_id: p.id,
+          role: p.pivot?.role || '',
+          date_debut: p.pivot?.date_debut ? p.pivot.date_debut.split('T')[0] : '',
+          date_fin: p.pivot?.date_fin ? p.pivot.date_fin.split('T')[0] : '',
+        })) || [],
         etat: projet.etat || 'planifie',
       });
     } catch (err) {
@@ -116,6 +114,52 @@ export default function ProjetForm() {
     }));
   };
 
+  const addPartenaire = () => {
+    setFormData(prev => ({
+      ...prev,
+      partenaires: [...prev.partenaires, { partenaire_id: null, role: '' }],
+    }));
+  };
+
+  const removePartenaire = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      partenaires: prev.partenaires.filter((_, i) => i !== index),
+    }));
+  };
+
+  const updatePartenaire = (index, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      partenaires: prev.partenaires.map((p, i) => 
+        i === index ? { ...p, [field]: value } : p
+      ),
+    }));
+  };
+
+  const addPersonnel = () => {
+    setFormData(prev => ({
+      ...prev,
+      personnel: [...prev.personnel, { user_id: null, role: '', date_debut: '', date_fin: '' }],
+    }));
+  };
+
+  const removePersonnel = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      personnel: prev.personnel.filter((_, i) => i !== index),
+    }));
+  };
+
+  const updatePersonnel = (index, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      personnel: prev.personnel.map((p, i) => 
+        i === index ? { ...p, [field]: value } : p
+      ),
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -124,7 +168,8 @@ export default function ProjetForm() {
     try {
       const data = {
         ...formData,
-        duree: formData.duree ? parseInt(formData.duree) : null,
+        partenaires: formData.partenaires.filter(p => p.partenaire_id),
+        personnel: formData.personnel.filter(p => p.user_id),
       };
 
       if (isEdit) {
@@ -217,7 +262,7 @@ export default function ProjetForm() {
 
             <Grid item xs={12}>
               <Autocomplete
-                options={users}
+                options={users.filter(u => ['admin', 'directeur', 'chef'].includes(u.role))}
                 getOptionLabel={(option) => `${option.prenom} ${option.nom} (${option.email})`}
                 value={users.find(u => u.email === formData.chef_projet_email) || null}
                 onChange={(e, newValue) => {
@@ -230,75 +275,6 @@ export default function ProjetForm() {
                     required
                   />
                 )}
-                renderOption={(props, option) => (
-                  <Box component="li" {...props}>
-                    <Box>
-                      <Typography variant="body1">
-                        {option.prenom} {option.nom}
-                      </Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        {option.email} - {option.role}
-                      </Typography>
-                    </Box>
-                  </Box>
-                )}
-              />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <Autocomplete
-                options={partenaires}
-                getOptionLabel={(option) => `${option.prenom} ${option.nom} (${option.email})`}
-                value={partenaires.find(p => p.email === formData.institution_initiatrice_email) || null}
-                onChange={(e, newValue) => {
-                  setFormData({ ...formData, institution_initiatrice_email: newValue?.email || '' });
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Institution initiatrice (Partenaire)"
-                  />
-                )}
-                renderOption={(props, option) => (
-                  <Box component="li" {...props}>
-                    <Box>
-                      <Typography variant="body1">
-                        {option.prenom} {option.nom}
-                      </Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        {option.email} - {option.departement || 'Partenaire'}
-                      </Typography>
-                    </Box>
-                  </Box>
-                )}
-              />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <Autocomplete
-                multiple
-                options={institutions}
-                getOptionLabel={(option) => `${option.nom} (${option.email})`}
-                value={institutions.filter(i => formData.institutions_emails.includes(i.email))}
-                onChange={(e, newValue) => {
-                  setFormData({ ...formData, institutions_emails: newValue.map(i => i.email) });
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Institutions liées"
-                    placeholder="Sélectionner les institutions"
-                  />
-                )}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => (
-                    <Chip
-                      label={`${option.nom} (${option.email})`}
-                      {...getTagProps({ index })}
-                      key={option.id}
-                    />
-                  ))
-                }
               />
             </Grid>
 
@@ -339,16 +315,107 @@ export default function ProjetForm() {
               />
             </Grid>
 
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Durée (en jours)"
-                name="duree"
-                type="number"
-                value={formData.duree}
-                onChange={handleChange}
-                inputProps={{ min: 1 }}
-              />
+            <Grid item xs={12}>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6">Partenaires positionnés</Typography>
+                <Button startIcon={<AddIcon />} onClick={addPartenaire} size="small">
+                  Ajouter
+                </Button>
+              </Box>
+              {formData.partenaires.map((partenaire, index) => (
+                <Box key={index} sx={{ mb: 2, p: 2, border: '1px solid #ddd', borderRadius: 1 }}>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} md={6}>
+                      <Autocomplete
+                        options={partenaires}
+                        getOptionLabel={(option) => `${option.nom} (${option.email || 'N/A'})`}
+                        value={partenaires.find(p => p.id === partenaire.partenaire_id) || null}
+                        onChange={(e, newValue) => {
+                          updatePartenaire(index, 'partenaire_id', newValue?.id || null);
+                        }}
+                        renderInput={(params) => (
+                          <TextField {...params} label="Partenaire" required />
+                        )}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={5}>
+                      <TextField
+                        fullWidth
+                        label="Rôle"
+                        value={partenaire.role}
+                        onChange={(e) => updatePartenaire(index, 'role', e.target.value)}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={1}>
+                      <IconButton onClick={() => removePartenaire(index)} color="error">
+                        <DeleteIcon />
+                      </IconButton>
+                    </Grid>
+                  </Grid>
+                </Box>
+              ))}
+            </Grid>
+
+            <Grid item xs={12}>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6">Personnel</Typography>
+                <Button startIcon={<AddIcon />} onClick={addPersonnel} size="small">
+                  Ajouter
+                </Button>
+              </Box>
+              {formData.personnel.map((personne, index) => (
+                <Box key={index} sx={{ mb: 2, p: 2, border: '1px solid #ddd', borderRadius: 1 }}>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} md={4}>
+                      <Autocomplete
+                        options={users}
+                        getOptionLabel={(option) => `${option.prenom} ${option.nom} (${option.email})`}
+                        value={users.find(u => u.id === personne.user_id) || null}
+                        onChange={(e, newValue) => {
+                          updatePersonnel(index, 'user_id', newValue?.id || null);
+                        }}
+                        renderInput={(params) => (
+                          <TextField {...params} label="Utilisateur" required />
+                        )}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                      <TextField
+                        fullWidth
+                        label="Rôle"
+                        value={personne.role}
+                        onChange={(e) => updatePersonnel(index, 'role', e.target.value)}
+                        required
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={2}>
+                      <TextField
+                        fullWidth
+                        label="Date début"
+                        type="date"
+                        value={personne.date_debut}
+                        onChange={(e) => updatePersonnel(index, 'date_debut', e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={2}>
+                      <TextField
+                        fullWidth
+                        label="Date fin"
+                        type="date"
+                        value={personne.date_fin}
+                        onChange={(e) => updatePersonnel(index, 'date_fin', e.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={1}>
+                      <IconButton onClick={() => removePersonnel(index)} color="error">
+                        <DeleteIcon />
+                      </IconButton>
+                    </Grid>
+                  </Grid>
+                </Box>
+              ))}
             </Grid>
 
             {isEdit && (

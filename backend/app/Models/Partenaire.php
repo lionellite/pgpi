@@ -9,6 +9,9 @@ class Partenaire extends Model
 {
     protected $fillable = [
         'nom',
+        'point_contact',
+        'localisation',
+        'logo',
         'type',
         'email',
         'telephone',
