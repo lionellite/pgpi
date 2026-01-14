@@ -34,10 +34,16 @@ class UserResource extends JsonResource
             'photo_url' => $this->photo_url,
             'sexe' => $this->sexe,
             'nom' => $this->nom,
+            // Le frontend utilise `prenom`
+            'prenom' => $this->prenoms ?? $this->prenom,
             'prenoms' => $this->prenoms,
             'date_inscription' => $this->date_inscription?->toDateTimeString(),
             'last_login_at' => $this->last_login_at?->toDateTimeString(),
             'module_id' => $this->module_id,
+            'departement_id' => $this->departement_id,
+            'departement' => $this->whenLoaded('departement', function () {
+                return $this->departement->nom;
+            }),
             'service_id' => $this->service_id,
             'service' => $this->whenLoaded('service', function () {
                 return [

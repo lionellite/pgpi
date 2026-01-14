@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\PartenaireController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\InstitutionController;
 use App\Http\Controllers\Api\ServiceController;
+use App\Http\Controllers\Api\DepartementController;
 use Illuminate\Support\Facades\Route;
 
 // Routes d'authentification (publiques)
@@ -50,6 +51,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Services
     Route::apiResource('services', ServiceController::class);
+
+    // Départements (lecture seule)
+    Route::get('/departements', [DepartementController::class, 'index']);
 
     // Personnel
     Route::post('/projets/{projet}/personnel', [ProjetController::class, 'attachPersonnel']);

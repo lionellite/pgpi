@@ -329,37 +329,6 @@ export default function ProjetForm() {
             </Grid>
 
             <Grid item xs={12}>
-              <Autocomplete
-                multiple
-                options={services}
-                getOptionLabel={(option) => option.titre || option.code || 'Service'}
-                value={services.filter(s => formData.services.includes(s.id))}
-                onChange={(e, newValue) => {
-                  setFormData(prev => ({
-                    ...prev,
-                    services: newValue.map(v => v.id),
-                  }));
-                }}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => (
-                    <Chip
-                      key={option.id}
-                      label={option.titre || option.code || `Service ${option.id}`}
-                      {...getTagProps({ index })}
-                    />
-                  ))
-                }
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Services associés"
-                    placeholder="Sélectionner un ou plusieurs services"
-                  />
-                )}
-              />
-            </Grid>
-
-            <Grid item xs={12}>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="h6">Partenaires positionnés</Typography>
                 <Button startIcon={<AddIcon />} onClick={addPartenaire} size="small">
@@ -421,6 +390,19 @@ export default function ProjetForm() {
                         renderInput={(params) => (
                           <TextField {...params} label="Utilisateur" required />
                         )}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                      <TextField
+                        fullWidth
+                        label="Service"
+                        value={
+                          (users.find(u => u.id === personne.user_id)?.service?.titre) ||
+                          (users.find(u => u.id === personne.user_id)?.service?.code) ||
+                          ''
+                        }
+                        InputProps={{ readOnly: true }}
+                        placeholder="Service de l'utilisateur"
                       />
                     </Grid>
                     <Grid item xs={12} md={3}>

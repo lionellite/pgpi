@@ -157,8 +157,12 @@ export default function Partenaires() {
     setPagination((prev) => ({ ...prev, current_page: value }));
   };
 
-  if (user?.role !== 'admin') {
-    return <Alert severity="error">Accès refusé. Seuls les administrateurs peuvent gérer les partenaires.</Alert>;
+  if (!['admin', 'directeur'].includes(user?.role)) {
+    return (
+      <Alert severity="error">
+        Accès refusé. Seuls les administrateurs et directeurs peuvent gérer les partenaires.
+      </Alert>
+    );
   }
 
   if (loading && partenaires.length === 0) {

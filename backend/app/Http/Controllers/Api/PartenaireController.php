@@ -75,8 +75,7 @@ class PartenaireController extends Controller
     public function update(StorePartenaireRequest $request, Partenaire $partenaire): JsonResponse
     {
         $user = $request->user();
-        
-        if (!in_array($user->role, ['admin', 'directeur', 'chef'])) {
+        if (!$user || (!$user->isAdmin() && !$user->isDirecteur() && !$user->isChef())) {
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 

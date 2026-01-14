@@ -30,6 +30,8 @@ class User extends Authenticatable
         'sexe',
         'nom',
         'prenoms',
+        'prenom',       // compat frontal simple
+        'departement_id',
         'date_inscription',
         'last_login_at',
         'module_id',
@@ -63,6 +65,11 @@ class User extends Authenticatable
     public function module(): BelongsTo
     {
         return $this->belongsTo(Module::class);
+    }
+
+    public function departement(): BelongsTo
+    {
+        return $this->belongsTo(Departement::class);
     }
 
     public function service(): BelongsTo

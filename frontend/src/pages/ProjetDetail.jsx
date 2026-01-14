@@ -603,6 +603,86 @@ export default function ProjetDetail() {
               </Grid>
             </Paper>
           </Grid>
+
+          <Grid item xs={12}>
+            <Paper sx={{ p: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                Activités, médias et documents récents
+              </Typography>
+
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={4}>
+                  <Typography variant="subtitle1" gutterBottom>Dernières activités</Typography>
+                  {projet.activites && projet.activites.length > 0 ? (
+                    <List dense>
+                      {projet.activites.slice(0, 3).map((a) => (
+                        <ListItem key={a.id} divider>
+                          <ListItemText
+                            primary={a.titre}
+                            secondary={
+                              <>
+                                {a.date_debut && (
+                                  <span>
+                                    Du {new Date(a.date_debut).toLocaleDateString()}
+                                    {a.date_fin ? ` au ${new Date(a.date_fin).toLocaleDateString()}` : ''}
+                                  </span>
+                                )}
+                                {a.etat ? <span>{` — ${a.etat}`}</span> : null}
+                              </>
+                            }
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      Aucune activité enregistrée
+                    </Typography>
+                  )}
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <Typography variant="subtitle1" gutterBottom>Médias récents</Typography>
+                  {projet.medias && projet.medias.length > 0 ? (
+                    <List dense>
+                      {projet.medias.slice(0, 3).map((m) => (
+                        <ListItem key={m.id} divider>
+                          <ListItemText
+                            primary={m.titre}
+                            secondary={m.type ? `Type: ${m.type}` : undefined}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      Aucun média pour le moment
+                    </Typography>
+                  )}
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <Typography variant="subtitle1" gutterBottom>Documents récents</Typography>
+                  {projet.documents && projet.documents.length > 0 ? (
+                    <List dense>
+                      {projet.documents.slice(0, 3).map((d) => (
+                        <ListItem key={d.id} divider>
+                          <ListItemText
+                            primary={d.titre}
+                            secondary={d.type ? `Type: ${d.type}` : undefined}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      Aucun document pour le moment
+                    </Typography>
+                  )}
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
         </Grid>
       )}
 

@@ -39,16 +39,22 @@ export default function Users() {
   const [openDialog, setOpenDialog] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [services, setServices] = useState([]);
+  const [departements, setDepartements] = useState([]);
   const [formData, setFormData] = useState({
     nom: '',
     prenom: '',
     email: '',
     password: '',
     role: 'personnel',
-    departement: '',
+    departement_id: null,
     service_id: null,
   });
   const { user: currentUser } = useAuth();
+
+  const roleLabel = (r) => {
+    if (r === 'chef') return 'chef projet';
+    return r || '';
+  };
 
   useEffect(() => {
     fetchUsers();
@@ -56,6 +62,7 @@ export default function Users() {
 
   useEffect(() => {
     fetchServices();
+    fetchDepartements();
   }, []);
 
   const fetchUsers = async () => {
@@ -80,7 +87,7 @@ export default function Users() {
         email: user.email,
         password: '',
         role: user.role,
-        departement: user.departement || '',
+        departement_id: user.departement_id || null,
         service_id: user.service_id || null,
       });
     } else {
@@ -91,7 +98,7 @@ export default function Users() {
         email: '',
         password: '',
         role: 'personnel',
-        departement: '',
+        departement_id: null,
         service_id: null,
       });
     }
@@ -144,6 +151,15 @@ export default function Users() {
       setServices(response.data.data || response.data);
     } catch (err) {
       console.error('Erreur chargement services:', err);
+    }
+  };
+
+  const fetchDepartements = async () => {
+    try {
+      const response = await api.get('/departements');
+      setDepartements(response.data.data || response.data);
+    } catch (err) {
+      console.error('Erreur chargement départements:', err);
     }
   };
 
@@ -237,7 +253,7 @@ export default function Users() {
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
                     <Chip
-                      label={user.role}
+                      label={roleLabel(user.role)}
                       color={getRoleColor(user.role)}
                       size="small"
                     />
@@ -319,17 +335,26 @@ export default function Users() {
                 >
                   <MenuItem value="admin">Admin</MenuItem>
                   <MenuItem value="directeur">Directeur</MenuItem>
-                  <MenuItem value="chef">Chef</MenuItem>
+                  <MenuItem value="chef">Chef projet</MenuItem>
                   <MenuItem value="personnel">Personnel</MenuItem>
                   <MenuItem value="apprenant">Apprenant</MenuItem>
                 </Select>
               </FormControl>
-              <TextField
-                label="Département"
-                name="departement"
-                value={formData.departement}
-                onChange={(e) => setFormData({ ...formData, departement: e.target.value })}
-                fullWidth
+              <Autocomplete
+                options={departements}
+                getOptionLabel={(option) => option.nom}
+                value={departements.find((d) => d.id === formData.departement_id) || null}
+                onChange={(e, newValue) =>
+                  setFormData({ ...formData, departement_id: newValue?.id || null })
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Département"
+                    placeholder="Sélectionner un département (optionnel)"
+                    fullWidth
+                  />
+                )}
               />
               <Autocomplete
                 options={services}

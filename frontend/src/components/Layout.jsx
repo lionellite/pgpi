@@ -35,15 +35,20 @@ export default function Layout() {
     { text: 'Tableau de bord', icon: <DashboardIcon />, path: '/' },
     { text: 'Projets', icon: <FolderIcon />, path: '/projets' },
     ...(user?.role === 'admin'
-      ? [
-          { text: 'Utilisateurs', icon: <PeopleIcon />, path: '/users' },
-          { text: 'Partenaires', icon: <BusinessIcon />, path: '/partenaires' },
-        ]
+      ? [{ text: 'Utilisateurs', icon: <PeopleIcon />, path: '/users' }]
+      : []),
+    ...(['admin', 'directeur'].includes(user?.role)
+      ? [{ text: 'Partenaires', icon: <BusinessIcon />, path: '/partenaires' }]
       : []),
     ...(['admin', 'directeur'].includes(user?.role)
       ? [{ text: 'Services', icon: <AccountTreeIcon />, path: '/services' }]
       : []),
   ];
+
+  const roleLabel = (r) => {
+    if (r === 'chef') return 'chef projet';
+    return r || '';
+  };
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -91,7 +96,7 @@ export default function Layout() {
               {user?.prenom} {user?.nom}
             </Typography>
             <Chip 
-              label={user?.role} 
+              label={roleLabel(user?.role)} 
               size="small" 
               color="secondary"
               sx={{ display: { xs: 'none', sm: 'block' } }}
