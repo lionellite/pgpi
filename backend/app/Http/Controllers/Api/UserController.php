@@ -20,28 +20,26 @@ class UserController extends Controller
     {
         $user = $request->user();
         
-        // Seuls les admins peuvent voir tous les utilisateurs
-        if (!$user->isAdmin()) {
-            abort(403, 'Accès refusé');
+        if (optional($user->role)->nom !== 'admin') {
+            abort(403, 'Accès refusé. Seuls les administrateurs peuvent accéder à cette page.');
         }
 
-        $query = User::query();
+        $query = User::with('role');
 
         if ($request->has('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
-                $q->where('nom', 'like', "%{$search}%")
-                  ->orWhere('prenom', 'like', "%{$search}%")
+                $q->where('name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
-        if ($request->has('role')) {
-            $query->where('role', $request->role);
+        if ($request->has('role_id')) {
+            $query->where('role_id', $request->role_id);
         }
 
         $perPage = $request->get('per_page', 15);
-        $users = $query->orderBy('nom')->orderBy('prenom')->paginate($perPage);
+        $users = $query->orderBy('name')->paginate($perPage);
 
         return UserResource::collection($users);
     }
@@ -53,26 +51,22 @@ class UserController extends Controller
     {
         $user = $request->user();
         
-        if (!$user->isAdmin()) {
+        if (optional($user->role)->nom !== 'admin') {
             abort(403, 'Accès refusé');
         }
 
         $request->validate([
-            'nom' => 'required|string|max:255',
-            'prenom' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8',
-            'role' => 'required|in:admin,directeur,chef_projet,personnel,partenaire,consultation',
-            'departement' => 'nullable|string|max:255',
+            'role_id' => 'required|exists:roles,id',
         ]);
 
         $newUser = User::create([
-            'nom' => $request->nom,
-            'prenom' => $request->prenom,
+            'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => $request->role,
-            'departement' => $request->departement,
+            'role_id' => $request->role_id,
         ]);
 
         return response()->json([
@@ -88,12 +82,12 @@ class UserController extends Controller
     {
         $requestUser = request()->user();
         
-        if (!$requestUser->isAdmin() && $requestUser->id !== $user->id) {
+        if (optional($requestUser->role)->nom !== 'admin' && $requestUser->id !== $user->id) {
             abort(403, 'Accès refusé');
         }
 
         return response()->json([
-            'data' => new UserResource($user)
+            'data' => new UserResource($user->load('role'))
         ]);
     }
 
@@ -104,35 +98,32 @@ class UserController extends Controller
     {
         $requestUser = $request->user();
         
-        if (!$requestUser->isAdmin() && $requestUser->id !== $user->id) {
+        if (optional($requestUser->role)->nom !== 'admin' && $requestUser->id !== $user->id) {
             abort(403, 'Accès refusé');
         }
 
         $request->validate([
-            'nom' => 'sometimes|required|string|max:255',
-            'prenom' => 'sometimes|required|string|max:255',
+            'name' => 'sometimes|required|string|max:255',
             'email' => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($user->id)],
             'password' => 'nullable|string|min:8',
-            'role' => ['sometimes', 'required', 'in:admin,directeur,chef_projet,personnel,partenaire,consultation'],
-            'departement' => 'nullable|string|max:255',
+            'role_id' => ['sometimes', 'required', 'exists:roles,id'],
         ]);
 
-        $data = $request->only(['nom', 'prenom', 'email', 'role', 'departement']);
+        $data = $request->only(['name', 'email', 'role_id']);
 
-        if ($request->has('password')) {
+        if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
         }
 
-        // Seuls les admins peuvent changer le rôle
-        if (!$requestUser->isAdmin() && isset($data['role'])) {
-            unset($data['role']);
+        if (optional($requestUser->role)->nom !== 'admin' && isset($data['role_id'])) {
+            unset($data['role_id']);
         }
 
         $user->update($data);
 
         return response()->json([
             'message' => 'Utilisateur mis à jour avec succès',
-            'data' => new UserResource($user)
+            'data' => new UserResource($user->load('role'))
         ]);
     }
 
@@ -143,7 +134,7 @@ class UserController extends Controller
     {
         $requestUser = request()->user();
         
-        if (!$requestUser->isAdmin()) {
+        if (optional($requestUser->role)->nom !== 'admin') {
             abort(403, 'Accès refusé');
         }
 
